@@ -5,23 +5,41 @@
  * Institución: Tecnológico de Monterrey
  * Fecha de creación: 2026-05-03
  *
- * Genera un PDF con el reporte del portafolio:
- * - Resumen general
- * - Posiciones
- * - Transacciones recientes
- * - Métricas del Dashboard
- * - Resumen técnico
+ * Genera un PDF con el reporte del portafolio incluyendo gráficas.
  */
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import Plotly from 'plotly.js';
 
 const ACCENT = [59, 130, 246];
 const GRAY = [156, 163, 175];
 const DARK = [17, 24, 39];
 
+/**
+ * Captura todas las gráficas Plotly visibles en el DOM como imágenes PNG base64.
+ * @returns {Promise<string[]>} Array de data URLs
+ */
+async function capturarGraficas() {
+  const plots = document.querySelectorAll('.js-plotly-plot');
+  const images = [];
+  for (const plot of plots) {
+    try {
+      const url = await Plotly.toImage(plot, { format: 'png', width: 700, height: 300, scale: 2 });
+      images.push(url);
+    } catch {
+      // Skip plots that can't be captured
+    }
+  }
+  return images;
+}
+
 export default async function generarPDFPortafolio({ portafolio, posiciones, transacciones }) {
+  // Capturar gráficas ANTES de generar el PDF
+  const graficas = await capturarGraficas();
+
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
   let y = 15;
 
   // ─── Header ───────────────────────────────────────────────────
@@ -46,15 +64,14 @@ export default async function generarPDFPortafolio({ portafolio, posiciones, tra
   const pnlTotal = activas.reduce((s, p) => s + (p.pnl_bruto || 0), 0);
 
   y = seccion(doc, 'Resumen General', y);
-  const resumenData = [
-    ['Valor Total', `$${valorTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
-    ['Posiciones Activas', `${activas.length}`],
-    ['P&L Bruto Total', `$${pnlTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
-    ['Capital Inicial', `$${(portafolio.capital_inicial || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
-  ];
   doc.autoTable({
     startY: y,
-    body: resumenData,
+    body: [
+      ['Valor Total', `$${fmt(valorTotal)}`],
+      ['Posiciones Activas', `${activas.length}`],
+      ['P&L Bruto Total', `$${fmt(pnlTotal)}`],
+      ['Capital Inicial', `$${fmt(portafolio.capital_inicial || 0)}`],
+    ],
     theme: 'plain',
     styles: { fontSize: 9, cellPadding: 2, textColor: [30, 30, 30] },
     columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } },
@@ -67,21 +84,35 @@ export default async function generarPDFPortafolio({ portafolio, posiciones, tra
   if (activas.length > 0) {
     doc.autoTable({
       startY: y,
-      head: [['Ticker', 'Cantidad', 'Precio Prom.', 'Precio Actual', 'Valor Mercado', 'P&L Bruto', 'P&L %']],
+      head: [['Ticker', 'Cant.', 'Precio Prom.', 'Precio Actual', 'Valor', 'P&L', 'P&L %']],
       body: activas.map(p => [
-        p.ticker,
-        fmt(p.cantidad, 0),
-        `$${fmt(p.precio_promedio)}`,
-        `$${fmt(p.precio_actual)}`,
-        `$${fmt(p.valor_mercado || p.precio_actual * p.cantidad)}`,
-        `$${fmt(p.pnl_bruto)}`,
-        `${fmt(p.pnl_porcentual)}%`,
+        p.ticker, fmt(p.cantidad, 0), `$${fmt(p.precio_promedio)}`, `$${fmt(p.precio_actual)}`,
+        `$${fmt(p.valor_mercado || p.precio_actual * p.cantidad)}`, `$${fmt(p.pnl_bruto)}`, `${fmt(p.pnl_porcentual)}%`,
       ]),
       headStyles: { fillColor: ACCENT, textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold' },
       styles: { fontSize: 8, cellPadding: 2 },
       margin: { left: 14, right: 14 },
     });
     y = doc.lastAutoTable.finalY + 6;
+  }
+
+  // ─── Gráficas de la pestaña activa ────────────────────────────
+  if (graficas.length > 0) {
+    y = checkPage(doc, y, 80);
+    y = seccion(doc, 'Gráficas', y);
+    const chartW = W - 28; // margins
+    const chartH = 55;
+
+    for (const img of graficas) {
+      y = checkPage(doc, y, chartH + 8);
+      try {
+        doc.addImage(img, 'PNG', 14, y, chartW, chartH);
+        y += chartH + 4;
+      } catch {
+        // Skip if image can't be added
+      }
+    }
+    y += 4;
   }
 
   // ─── Transacciones recientes ──────────────────────────────────
@@ -93,12 +124,8 @@ export default async function generarPDFPortafolio({ portafolio, posiciones, tra
       startY: y,
       head: [['Fecha', 'Ticker', 'Tipo', 'Cantidad', 'Precio', 'Total']],
       body: txList.slice(0, 20).map(tx => [
-        tx.fecha?.substring(0, 10) || '—',
-        tx.ticker,
-        tx.tipo,
-        fmt(tx.cantidad, 0),
-        `$${fmt(tx.precio_unitario)}`,
-        `$${fmt((tx.cantidad || 0) * (tx.precio_unitario || 0))}`,
+        tx.fecha?.substring(0, 10) || '—', tx.ticker, tx.tipo, fmt(tx.cantidad, 0),
+        `$${fmt(tx.precio_unitario)}`, `$${fmt((tx.cantidad || 0) * (tx.precio_unitario || 0))}`,
       ]),
       headStyles: { fillColor: ACCENT, textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold' },
       styles: { fontSize: 8, cellPadding: 2 },
@@ -107,7 +134,7 @@ export default async function generarPDFPortafolio({ portafolio, posiciones, tra
     y = doc.lastAutoTable.finalY + 6;
   }
 
-  // ─── Dashboard (métricas) ─────────────────────────────────────
+  // ─── Dashboard (métricas + gráficas generadas) ────────────────
   if (activas.length >= 2) {
     try {
       const res = await fetch(`/api/portafolios/${portafolio.id}/dashboard`);
@@ -132,23 +159,17 @@ export default async function generarPDFPortafolio({ portafolio, posiciones, tra
           metricasData.push(['TWR Anualizado', `${dash.twr.twr_anualizado}%`]);
         }
         doc.autoTable({
-          startY: y,
-          body: metricasData,
-          theme: 'plain',
+          startY: y, body: metricasData, theme: 'plain',
           styles: { fontSize: 9, cellPadding: 2 },
           columnStyles: { 0: { fontStyle: 'bold', cellWidth: 55 } },
           margin: { left: 14, right: 14 },
         });
         y = doc.lastAutoTable.finalY + 4;
 
-        // Pesos actuales
+        // Pesos + contribución al riesgo
         if (dash.pesos) {
           y = checkPage(doc, y, 30);
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(60, 60, 60);
-          doc.text('Pesos Actuales:', 14, y);
-          y += 4;
+          y = seccion(doc, 'Pesos y Contribución al Riesgo', y);
           doc.autoTable({
             startY: y,
             head: [['Ticker', 'Peso (%)', 'Contrib. Riesgo (%)']],
@@ -160,32 +181,46 @@ export default async function generarPDFPortafolio({ portafolio, posiciones, tra
           y = doc.lastAutoTable.finalY + 4;
         }
 
+        // Generar gráficas del dashboard off-screen con Plotly
+        const dashCharts = await generarGraficasDashboard(dash);
+        if (dashCharts.length > 0) {
+          y = checkPage(doc, y, 60);
+          y = seccion(doc, 'Gráficas del Dashboard', y);
+          const cW = (W - 32) / 2;
+          const cH = 45;
+          for (let i = 0; i < dashCharts.length; i += 2) {
+            y = checkPage(doc, y, cH + 8);
+            try { doc.addImage(dashCharts[i].img, 'PNG', 14, y, cW, cH); } catch {}
+            if (dashCharts[i + 1]) {
+              try { doc.addImage(dashCharts[i + 1].img, 'PNG', 18 + cW, y, cW, cH); } catch {}
+            }
+            // Labels
+            doc.setFontSize(7); doc.setTextColor(...GRAY);
+            doc.text(dashCharts[i].label, 14, y + cH + 3);
+            if (dashCharts[i + 1]) doc.text(dashCharts[i + 1].label, 18 + cW, y + cH + 3);
+            y += cH + 8;
+          }
+        }
+
         // Resumen técnico
         if (dash.resumen_tecnico?.length > 0) {
           y = checkPage(doc, y, 30);
           y = seccion(doc, 'Resumen Técnico por Activo', y);
           doc.autoTable({
             startY: y,
-            head: [['Ticker', 'Precio', 'RSI', 'MACD Hist.', 'SMA 50', 'Tendencia', 'Señales']],
+            head: [['Ticker', 'Precio', 'RSI', 'MACD', 'SMA 50', 'Tendencia', 'Señales']],
             body: dash.resumen_tecnico.map(t => [
-              t.ticker,
-              t.error ? '—' : `$${t.precio}`,
-              t.rsi ?? '—',
+              t.ticker, t.error ? '—' : `$${t.precio}`, t.rsi ?? '—',
               t.macd_histograma != null ? t.macd_histograma.toFixed(2) : '—',
-              t.sma50 ?? '—',
-              t.tendencia || '—',
-              (t.señales || []).join(', ') || '—',
+              t.sma50 ?? '—', t.tendencia || '—', (t.señales || []).join(', ') || '—',
             ]),
             headStyles: { fillColor: ACCENT, textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
             styles: { fontSize: 7, cellPadding: 2 },
             margin: { left: 14, right: 14 },
           });
-          y = doc.lastAutoTable.finalY + 6;
         }
       }
-    } catch (e) {
-      // Dashboard fetch failed, skip
-    }
+    } catch { /* dashboard fetch failed */ }
   }
 
   // ─── Footer ───────────────────────────────────────────────────
@@ -194,30 +229,76 @@ export default async function generarPDFPortafolio({ portafolio, posiciones, tra
     doc.setPage(i);
     doc.setFontSize(7);
     doc.setTextColor(...GRAY);
-    doc.text(`Lakshmi Q2 — Generado el ${new Date().toLocaleString('es-MX')}`, 14, doc.internal.pageSize.getHeight() - 8);
-    doc.text(`Página ${i} de ${pages}`, W - 14, doc.internal.pageSize.getHeight() - 8, { align: 'right' });
+    doc.text(`Lakshmi Q2 — Generado el ${new Date().toLocaleString('es-MX')}`, 14, H - 8);
+    doc.text(`Página ${i} de ${pages}`, W - 14, H - 8, { align: 'right' });
   }
 
   doc.save(`Portafolio_${portafolio.nombre.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
+// ─── Generar gráficas del dashboard off-screen ──────────────────
+async function generarGraficasDashboard(dash) {
+  const charts = [];
+  const opts = { format: 'png', width: 600, height: 280, scale: 2 };
+  const layout = { paper_bgcolor: '#ffffff', plot_bgcolor: '#f9fafb', font: { size: 10, color: '#374151' }, margin: { t: 10, r: 10, b: 30, l: 50 }, showlegend: false };
+
+  // Crecimiento de $1
+  if (dash.historico?.fechas?.length > 0) {
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    await Plotly.newPlot(div, [{ x: dash.historico.fechas, y: dash.historico.crecimiento, type: 'scatter', mode: 'lines', line: { color: '#3b82f6', width: 2 }, fill: 'tozeroy', fillcolor: 'rgba(59,130,246,0.1)' }], { ...layout }, { staticPlot: true });
+    const img = await Plotly.toImage(div, opts);
+    charts.push({ img, label: 'Crecimiento de $1' });
+    Plotly.purge(div); div.remove();
+  }
+
+  // Drawdown
+  if (dash.historico?.drawdown?.length > 0) {
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    await Plotly.newPlot(div, [{ x: dash.historico.fechas, y: dash.historico.drawdown, type: 'scatter', mode: 'lines', fill: 'tozeroy', line: { color: '#ef4444', width: 1.5 }, fillcolor: 'rgba(239,68,68,0.15)' }], { ...layout, yaxis: { ...layout.yaxis, title: '%' } }, { staticPlot: true });
+    const img = await Plotly.toImage(div, opts);
+    charts.push({ img, label: 'Drawdown' });
+    Plotly.purge(div); div.remove();
+  }
+
+  // TWR
+  if (dash.twr?.fechas?.length > 0) {
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const color = dash.twr.twr_total >= 0 ? '#10b981' : '#ef4444';
+    await Plotly.newPlot(div, [{ x: dash.twr.fechas, y: dash.twr.valores, type: 'scatter', mode: 'lines', line: { color, width: 2 }, fill: 'tozeroy', fillcolor: dash.twr.twr_total >= 0 ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)' }], { ...layout, yaxis: { ...layout.yaxis, title: '%', zeroline: true } }, { staticPlot: true });
+    const img = await Plotly.toImage(div, opts);
+    charts.push({ img, label: `TWR: ${dash.twr.twr_total}%` });
+    Plotly.purge(div); div.remove();
+  }
+
+  // Correlación heatmap
+  if (dash.correlacion && dash.tickers?.length >= 2) {
+    const t = dash.tickers;
+    const z = t.map(t1 => t.map(t2 => dash.correlacion[t1]?.[t2] ?? 0));
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    await Plotly.newPlot(div, [{ z, x: t, y: t, type: 'heatmap', colorscale: 'RdYlGn', zmin: -1, zmax: 1 }], { ...layout, margin: { t: 10, r: 60, b: 60, l: 60 } }, { staticPlot: true });
+    const img = await Plotly.toImage(div, opts);
+    charts.push({ img, label: 'Correlación' });
+    Plotly.purge(div); div.remove();
+  }
+
+  return charts;
+}
+
 // ─── Helpers ────────────────────────────────────────────────────
 function seccion(doc, titulo, y) {
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...ACCENT);
+  doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(...ACCENT);
   doc.text(titulo, 14, y);
-  doc.setDrawColor(...ACCENT);
-  doc.setLineWidth(0.3);
+  doc.setDrawColor(...ACCENT); doc.setLineWidth(0.3);
   doc.line(14, y + 1.5, doc.internal.pageSize.getWidth() - 14, y + 1.5);
   return y + 6;
 }
 
 function checkPage(doc, y, needed) {
-  if (y + needed > doc.internal.pageSize.getHeight() - 15) {
-    doc.addPage();
-    return 15;
-  }
+  if (y + needed > doc.internal.pageSize.getHeight() - 15) { doc.addPage(); return 15; }
   return y;
 }
 
