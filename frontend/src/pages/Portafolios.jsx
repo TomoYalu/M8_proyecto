@@ -51,8 +51,6 @@ export default function Portafolios() {
   const preciosEnVivo = useStore((s) => s.preciosEnVivo);
   const { subscribe_portfolio, unsubscribe_portfolio } = useWebSocket();
 
-  const {
-
   // ─── Estado local de modales ──────────────────────────────────
   const [modalCrear, setModalCrear] = useState(false);
   const [modalEditar, setModalEditar] = useState(null);
