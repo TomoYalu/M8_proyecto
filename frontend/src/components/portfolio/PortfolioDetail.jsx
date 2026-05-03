@@ -57,6 +57,8 @@ export default function PortfolioDetail({
   const [analisisCache, setAnalisisCache] = useState(null);
   const [analisisExecuted, setAnalisisExecuted] = useState(false);
   const [perfilAnalisis, setPerfilAnalisis] = useState('moderado');
+  const [aplicando, setAplicando] = useState(false);
+  const [aplicadoMsg, setAplicadoMsg] = useState(null);
   const {
     ejecutarOptimizacion,
     cargandoOptimizacion,
@@ -73,26 +75,10 @@ export default function PortfolioDetail({
   // Auto-execute optimization when Análisis tab is selected (Req 9.2)
   useEffect(() => {
     if (tabActiva !== 'analisis') return;
-    if (analisisCache) return; // Already cached (Req 9.5)
-    if (tickersActivos.length < 2) return; // Need at least 2 (Req 9.3)
+    if (analisisCache) return;
+    if (tickersActivos.length < 2) return;
     if (cargandoOptimizacion) return;
 
-    ejecutarOptimizacion({ tickers: tickersActivos, portafolio_id: portafolio.id })
-      .then((data) => {
-        setAnalisisCache(data);
-        setAnalisisExecuted(true);
-      })
-      .catch(() => {
-        setAnalisisExecuted(true);
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabActiva]);
-
-  // Re-optimize handler (Req 9.4)
-  const handleReOptimizar = useCallback(() => {
-    setAnalisisCache(null);
-    setAnalisisExecuted(false);
-    limpiarResultados();
     const perfil = PERFILES[perfilAnalisis] || PERFILES.moderado;
     ejecutarOptimizacion({
       tickers: tickersActivos,
@@ -107,18 +93,71 @@ export default function PortfolioDetail({
         setAnalisisExecuted(true);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tickersActivos.join(','), perfilAnalisis]);
+  }, [tabActiva, perfilAnalisis]);
 
   // Reset cache when portfolio changes
   useEffect(() => {
     setAnalisisCache(null);
     setAnalisisExecuted(false);
+    setAplicadoMsg(null);
     limpiarResultados();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portafolio.id]);
 
   // Resolve the data to show: cached first, then store result
   const analisisData = analisisCache || resultadoOptimizacion;
+
+  // Aplicar optimización al portafolio
+  const handleAplicar = useCallback(async () => {
+    if (!portafolio?.id || !analisisData?.max_sharpe?.acciones) return;
+    setAplicando(true);
+    setAplicadoMsg(null);
+    try {
+      const acciones = {};
+      const tickers = analisisData.tickers || [];
+      const maxSharpe = analisisData.max_sharpe;
+      const pesosActuales = analisisData.pesos_actuales;
+
+      tickers.forEach((ticker) => {
+        const objetivo = maxSharpe.acciones?.[ticker] || 0;
+        let actual = 0;
+        if (pesosActuales?.pesos_actuales) {
+          const precio = analisisData.estadisticas?.[ticker]?.precio || 0;
+          if (precio > 0) {
+            const pesoActual = (pesosActuales.pesos_actuales[ticker] || 0) / 100;
+            const valorTotal = Object.values(maxSharpe.monto || {}).reduce((s, v) => s + v, 0);
+            actual = Math.floor(pesoActual * valorTotal / precio);
+          }
+        }
+        if (objetivo !== actual) {
+          acciones[ticker] = {
+            cantidad_objetivo: objetivo,
+            cantidad_actual: actual,
+            precio: analisisData.estadisticas?.[ticker]?.precio || 0,
+            moneda: 'USD',
+          };
+        }
+      });
+
+      if (Object.keys(acciones).length === 0) {
+        setAplicadoMsg('El portafolio ya está alineado con la optimización.');
+        return;
+      }
+
+      const res = await fetch(`/api/portafolios/${portafolio.id}/aplicar-optimizacion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acciones }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al aplicar');
+      setAplicadoMsg(`\u2713 ${data.mensaje}`);
+    } catch (err) {
+      setAplicadoMsg(`Error: ${err.message}`);
+    } finally {
+      setAplicando(false);
+    }
+  }, [portafolio?.id, analisisData]);
 
   const tabs = [
     { id: 'posiciones', label: 'Posiciones' },
@@ -312,7 +351,7 @@ export default function PortfolioDetail({
                   {Object.entries(PERFILES).map(([key, p]) => (
                     <button
                       key={key}
-                      onClick={() => { setPerfilAnalisis(key); setAnalisisCache(null); setAnalisisExecuted(false); limpiarResultados(); }}
+                      onClick={() => { setPerfilAnalisis(key); setAnalisisCache(null); limpiarResultados(); }}
                       className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
                         perfilAnalisis === key
                           ? 'bg-bloomberg-accent/20 border-bloomberg-accent/40 text-bloomberg-accent'
@@ -324,12 +363,34 @@ export default function PortfolioDetail({
                     </button>
                   ))}
                 </div>
+                {/* Aplicar al portafolio */}
+                {analisisData?.max_sharpe && (
+                  <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-bloomberg-panel border border-white/5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-bloomberg-text-muted">
+                        Genera transacciones pendientes para alinear los pesos.
+                      </p>
+                      {aplicadoMsg && (
+                        <p className={`text-xs mt-1 ${aplicadoMsg.startsWith('Error') ? 'text-bloomberg-red' : 'text-bloomberg-green'}`}>
+                          {aplicadoMsg}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleAplicar}
+                      disabled={aplicando}
+                      className="px-3 py-1.5 text-xs rounded-lg bg-bloomberg-accent text-white
+                                 hover:bg-bloomberg-accent/80 disabled:opacity-50 transition-colors shrink-0"
+                    >
+                      {aplicando ? 'Aplicando...' : '📊 Aplicar al portafolio'}
+                    </button>
+                  </div>
+                )}
                 <AnalisisPanel
                   tickersActivos={tickersActivos}
                   analisisData={analisisData}
                   cargando={cargandoOptimizacion}
                   error={errorOptimizacion}
-                  onReOptimizar={handleReOptimizar}
                   portafolioId={portafolio.id}
                 />
                 </>
@@ -610,7 +671,7 @@ function Sparkline({ portafolioId }) {
 
 
 // ─── Análisis Panel (Req 9.1–9.5) ──────────────────────────────
-function AnalisisPanel({ tickersActivos, analisisData, cargando, error, onReOptimizar, portafolioId }) {
+function AnalisisPanel({ tickersActivos, analisisData, cargando, error, portafolioId }) {
   // Less than 2 active positions (Req 9.3)
   if (tickersActivos.length < 2) {
     return (
@@ -642,43 +703,5 @@ function AnalisisPanel({ tickersActivos, analisisData, cargando, error, onReOpti
 
   return (
     <div className="space-y-4">
-      {/* Re-optimizar button (Req 9.4) */}
-      <div className="flex justify-end">
-        <button
-          onClick={onReOptimizar}
-          disabled={cargando}
-          className="px-3 py-1.5 text-xs rounded-lg bg-bloomberg-accent/20 text-bloomberg-accent
-                     hover:bg-bloomberg-accent/30 transition-colors flex items-center gap-1.5
-                     disabled:opacity-50 disabled:cursor-not-allowed"
-          aria-label="Re-optimizar portafolio"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className={`w-3.5 h-3.5 ${cargando ? 'animate-spin' : ''}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-          Re-optimizar
-        </button>
-      </div>
-
-      {/* OptimizerResults (Req 9.2) */}
-      <OptimizerResults
-        resultado={analisisData}
-        cargando={cargando}
-        error={error}
-        onReintentar={onReOptimizar}
-        portafolioId={portafolioId}
-      />
-    </div>
   );
 }
