@@ -44,9 +44,22 @@ Los datos de SQLite y los logs se persisten en volúmenes Docker (`sqlite-data`,
 
 ---
 
-## Desarrollo Local
+## Inicio Rápido (easy_start)
 
-### Backend (Flask)
+Se incluyen scripts que automatizan toda la instalación y arranque:
+
+- **Windows (PowerShell):** `.\easy_start.ps1`
+- **Mac / Linux (Bash):** `chmod +x easy_start.sh && ./easy_start.sh`
+
+El script verifica que Python y Node.js estén instalados, crea el entorno virtual, instala dependencias, pide el Agent ID de ElevenLabs (opcional), y levanta backend y frontend con datos demo.
+
+> **Nota:** Solo fue probado en Windows 11. El script de Mac/Linux se incluye como referencia pero no ha sido verificado.
+
+---
+
+## Desarrollo Local (sin Docker)
+
+### 1. Backend (Flask)
 
 ```bash
 cd backend
@@ -59,13 +72,16 @@ source venv/bin/activate   # Linux/Mac
 # Instalar dependencias
 pip install -r requirements.txt
 
-# Ejecutar servidor de desarrollo
-python run.py
+# Ejecutar servidor de desarrollo (con datos demo precargados)
+LAKSHMI_DEMO=1 python run.py            # Linux/Mac
+# $env:LAKSHMI_DEMO="1"; python run.py  # Windows PowerShell
 ```
 
 El backend se ejecuta en `http://localhost:5000`.
 
-### Frontend (React + Vite)
+La variable `LAKSHMI_DEMO=1` carga un portafolio de ejemplo con posiciones y transacciones al iniciar, útil para pruebas. Si se omite, la base de datos inicia vacía.
+
+### 2. Frontend (React + Vite)
 
 ```bash
 cd frontend
@@ -73,11 +89,15 @@ cd frontend
 # Instalar dependencias
 npm install
 
+# (Opcional) Configurar asistente de voz ElevenLabs
+# Crear archivo frontend/.env con:
+# VITE_ELEVENLABS_AGENT_ID=tu-agent-id-aqui
+
 # Ejecutar servidor de desarrollo
 npm run dev
 ```
 
-El frontend se ejecuta en `http://localhost:5173` (Vite dev server).
+El frontend se ejecuta en `http://localhost:3000`.
 
 Para generar el build de producción:
 
@@ -89,19 +109,21 @@ npm run build
 
 ## Variables de Entorno
 
-Crear un archivo `.env` en la raíz del proyecto basado en `.env.example`:
-
-| Variable         | Descripción                                                        | Ejemplo                          |
-|------------------|--------------------------------------------------------------------|----------------------------------|
-| `SECRET_KEY`     | Clave secreta para sesiones Flask. Cambiar en producción.          | `mi-clave-secreta-segura`        |
-| `FLASK_ENV`      | Entorno de Flask: `development` o `production`.                    | `development`                    |
-| `SMTP_HOST`      | Servidor SMTP para envío de alertas por email.                     | `smtp.gmail.com`                 |
-| `SMTP_PORT`      | Puerto del servidor SMTP.                                          | `587`                            |
-| `SMTP_USER`      | Usuario/email para autenticación SMTP.                             | `tu-email@gmail.com`             |
-| `SMTP_PASSWORD`  | Contraseña o app password para SMTP.                               | `tu-app-password`                |
-| `BANXICO_TOKEN`  | Token de la API de Banxico para consultar INPC y tipo de cambio.   | `tu-token-banxico`               |
+| Variable | Ubicación | Requerida | Descripción |
+|----------|-----------|-----------|-------------|
+| `LAKSHMI_DEMO` | Variable de sistema | No | Si es `1`, carga portafolio demo al iniciar el backend |
+| `VITE_ELEVENLABS_AGENT_ID` | `frontend/.env` | No | Agent ID de ElevenLabs para el asistente de voz |
+| `SECRET_KEY` | `.env` raíz | Producción | Clave secreta para sesiones Flask |
+| `FLASK_ENV` | `.env` raíz | No | `development` o `production` |
+| `BANXICO_TOKEN` | `.env` raíz | No | Token API Banxico para INPC y tipo de cambio USD/MXN |
+| `SMTP_HOST` | `.env` raíz | No | Servidor SMTP para alertas por email |
+| `SMTP_PORT` | `.env` raíz | No | Puerto SMTP (ej. `587`) |
+| `SMTP_USER` | `.env` raíz | No | Usuario SMTP |
+| `SMTP_PASSWORD` | `.env` raíz | No | Contraseña o app password SMTP |
 
 El token de Banxico se obtiene en: https://www.banxico.org.mx/SieAPIRest/service/v1/token
+
+---
 
 ---
 
