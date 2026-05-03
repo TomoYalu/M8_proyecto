@@ -100,7 +100,7 @@ else
 fi
 
 # ── 10. Levantar Frontend ────────────────────────────────────────
-echo "[...] Levantando frontend (puerto 5173)..."
+echo "[...] Levantando frontend (puerto 3000)..."
 cd "$ROOT/frontend"
 npm run dev &
 FRONTEND_PID=$!
@@ -113,7 +113,7 @@ echo "========================================"
 echo "  Lakshmi Q2 esta corriendo!"
 echo "========================================"
 echo ""
-echo "  Frontend:  http://localhost:5173"
+echo "  Frontend:  http://localhost:3000"
 echo "  Backend:   http://localhost:5000"
 echo ""
 echo "  Para detener: presiona Ctrl+C"
@@ -121,9 +121,9 @@ echo ""
 
 # Abrir navegador
 if command -v open &>/dev/null; then
-    open "http://localhost:5173"
+    open "http://localhost:3000"
 elif command -v xdg-open &>/dev/null; then
-    xdg-open "http://localhost:5173"
+    xdg-open "http://localhost:3000"
 fi
 
 # Esperar y limpiar al salir

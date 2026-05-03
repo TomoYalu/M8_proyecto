@@ -6,7 +6,7 @@
 # Uso:  .\easy_start.ps1
 # =============================================================================
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 $ROOT = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 Write-Host ""
@@ -57,13 +57,14 @@ if (-not (Test-Path $venvPath)) {
 # ── 5. Instalar dependencias de Python ───────────────────────────
 Write-Host "[...] Instalando dependencias de Python..." -ForegroundColor Cyan
 $pipExe = Join-Path $venvPath "Scripts\pip.exe"
-& $pipExe install -r "$ROOT\backend\requirements.txt" --quiet 2>&1 | Out-Null
+& $pipExe install -r "$ROOT\backend\requirements.txt" --quiet 2>&1 | Where-Object { $_ -notmatch "WARNING" } | Out-Null
+if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] Fallo al instalar dependencias de Python" -ForegroundColor Red; exit 1 }
 Write-Host "[OK] Dependencias de Python instaladas" -ForegroundColor Green
 
 # ── 6. Instalar dependencias de Node.js ──────────────────────────
 Write-Host "[...] Instalando dependencias de Node.js..." -ForegroundColor Cyan
 Push-Location "$ROOT\frontend"
-npm install --silent 2>&1 | Out-Null
+npm install --silent 2>&1 | Where-Object { $_ -notmatch "warn" } | Out-Null
 Pop-Location
 Write-Host "[OK] Dependencias de Node.js instaladas" -ForegroundColor Green
 
@@ -105,8 +106,9 @@ if ($ready) {
 }
 
 # ── 10. Levantar Frontend ────────────────────────────────────────
-Write-Host "[...] Levantando frontend (puerto 5173)..." -ForegroundColor Cyan
-$frontendProc = Start-Process -FilePath "npm" -ArgumentList "run","dev" `
+Write-Host "[...] Levantando frontend (puerto 3000)..." -ForegroundColor Cyan
+$npmCmd = (Get-Command npm).Source
+$frontendProc = Start-Process -FilePath "cmd" -ArgumentList "/c","npm","run","dev" `
     -WorkingDirectory "$ROOT\frontend" -PassThru -WindowStyle Minimized
 Write-Host "[OK] Frontend iniciado (PID: $($frontendProc.Id))" -ForegroundColor Green
 
@@ -116,7 +118,7 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host "  Lakshmi Q2 esta corriendo!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Frontend:  http://localhost:5173" -ForegroundColor White
+Write-Host "  Frontend:  http://localhost:3000" -ForegroundColor White
 Write-Host "  Backend:   http://localhost:5000" -ForegroundColor White
 Write-Host ""
 Write-Host "  Para detener: cierra esta ventana o ejecuta:" -ForegroundColor Gray
@@ -124,7 +126,7 @@ Write-Host "    Stop-Process -Id $($backendProc.Id),$($frontendProc.Id)" -Foregr
 Write-Host ""
 
 # Abrir navegador
-Start-Process "http://localhost:5173"
+Start-Process "http://localhost:3000"
 
 # Mantener la ventana abierta
 Write-Host "Presiona Ctrl+C para detener los servicios." -ForegroundColor Yellow
