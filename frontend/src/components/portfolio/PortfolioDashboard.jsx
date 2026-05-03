@@ -42,7 +42,7 @@ export default function PortfolioDashboard({ portafolioId, posiciones }) {
     setError(null);
     fetch(`/api/portafolios/${portafolioId}/dashboard`)
       .then(r => { if (!r.ok) throw new Error('Error al cargar dashboard'); return r.json(); })
-      .then(d => { if (!cancelled) setDashboardCache(portafolioId, d, posHash); })
+      .then(d => { setDashboardCache(portafolioId, d, posHash); })
       .catch(e => { if (!cancelled) setError(e.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
