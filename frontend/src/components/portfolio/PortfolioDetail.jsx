@@ -55,9 +55,9 @@ export default function PortfolioDetail({
     limpiarResultados,
   } = useOptimizer();
 
-  // Active tickers for optimization (cantidad > 0)
+  // Tickers del portafolio para optimización (incluye pool con cantidad 0)
   const tickersActivos = (posiciones || [])
-    .filter((p) => p.cantidad > 0)
+    .filter((p) => p.ticker)
     .map((p) => p.ticker);
 
   // Auto-execute optimization when Análisis tab is selected (Req 9.2)

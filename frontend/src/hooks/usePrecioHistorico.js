@@ -1,22 +1,42 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+
+/**
+ * Obtiene la fecha de hoy en formato YYYY-MM-DD usando hora local.
+ * Si la fecha solicitada es hoy o futura, retorna ayer para evitar
+ * errores de "fecha futura" por diferencias de zona horaria.
+ */
+function ajustarFecha(fechaStr) {
+  if (!fechaStr) return null;
+  const hoy = new Date();
+  const fechaSolicitada = new Date(fechaStr + 'T12:00:00'); // Mediodía para evitar problemas de TZ
+
+  // Si la fecha es hoy o futura, usar ayer
+  if (fechaSolicitada >= new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())) {
+    const ayer = new Date(hoy);
+    ayer.setDate(ayer.getDate() - 1);
+    return ayer.toISOString().split('T')[0];
+  }
+  return fechaStr;
+}
 
 /**
  * Hook que consulta el precio histórico de cierre cuando ticker y fecha están definidos.
  *
- * Implementa debounce, cancelación de solicitudes pendientes (AbortController)
- * y un flag de edición manual para no sobrescribir precios ingresados por el usuario.
+ * Usa un approach simplificado: un solo fetch con debounce, sin AbortController
+ * en el cleanup para evitar race conditions. En su lugar, usa un flag `stale`
+ * para ignorar respuestas de solicitudes obsoletas.
  *
  * @param {string} ticker - Símbolo del ticker (ej. 'AAPL', 'AMXL.MX')
  * @param {string} fecha - Fecha en formato YYYY-MM-DD
  * @param {object} opciones
- * @param {number} [opciones.debounceMs=500] - Milisegundos de debounce antes de consultar
+ * @param {number} [opciones.debounceMs=600] - Milisegundos de debounce antes de consultar
  * @returns {{ precio: number|null, cargando: boolean, error: string|null,
  *             fechaReal: string|null, moneda: string|null,
  *             precioEditadoManualmente: boolean,
  *             setPrecioEditadoManualmente: function }}
  */
 export default function usePrecioHistorico(ticker, fecha, opciones = {}) {
-  const { debounceMs = 500 } = opciones;
+  const { debounceMs = 600 } = opciones;
 
   const [precio, setPrecio] = useState(null);
   const [cargando, setCargando] = useState(false);
@@ -26,7 +46,7 @@ export default function usePrecioHistorico(ticker, fecha, opciones = {}) {
   const [precioEditadoManualmente, setPrecioEditadoManualmente] = useState(false);
 
   const debounceRef = useRef(null);
-  const abortRef = useRef(null);
+  const fetchIdRef = useRef(0); // Incrementing ID to track stale responses
   const tickerAnteriorRef = useRef(ticker);
 
   // Resetear precioEditadoManualmente cuando cambia el ticker
@@ -50,62 +70,62 @@ export default function usePrecioHistorico(ticker, fecha, opciones = {}) {
       return;
     }
 
+    // Ticker debe tener al menos 2 caracteres para evitar fetches innecesarios
+    if (ticker.trim().length < 2) {
+      return;
+    }
+
     setCargando(true);
+    const currentFetchId = ++fetchIdRef.current;
 
-    debounceRef.current = setTimeout(() => {
-      // Cancelar solicitud pendiente
-      if (abortRef.current) {
-        abortRef.current.abort();
+    debounceRef.current = setTimeout(async () => {
+      // Ajustar fecha para evitar "fecha futura" por zona horaria
+      const fechaAjustada = ajustarFecha(fecha.trim()) || fecha.trim();
+      const params = new URLSearchParams({
+        ticker: ticker.trim(),
+        fecha: fechaAjustada,
+      });
+
+      try {
+        const res = await fetch(`/api/busqueda/precio-historico?${params}`);
+
+        // Ignorar si ya hay un fetch más reciente
+        if (currentFetchId !== fetchIdRef.current) return;
+
+        if (!res.ok) {
+          const body = await res.json();
+          throw new Error(body.error || `Error ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        // Ignorar si ya hay un fetch más reciente
+        if (currentFetchId !== fetchIdRef.current) return;
+
+        setPrecio(data.precio_cierre);
+        setFechaReal(data.fecha_real);
+        setMoneda(data.moneda);
+        setError(null);
+      } catch (err) {
+        if (currentFetchId !== fetchIdRef.current) return;
+        console.warn('[usePrecioHistorico] Error:', err.message);
+        setPrecio(null);
+        setFechaReal(null);
+        setMoneda(null);
+        setError(err.message);
+      } finally {
+        if (currentFetchId === fetchIdRef.current) {
+          setCargando(false);
+        }
       }
-
-      const controller = new AbortController();
-      abortRef.current = controller;
-
-      const params = new URLSearchParams({ ticker: ticker.trim(), fecha: fecha.trim() });
-
-      fetch(`/api/busqueda/precio-historico?${params}`, {
-        signal: controller.signal,
-      })
-        .then((res) => {
-          if (!res.ok) {
-            return res.json().then((body) => {
-              throw new Error(body.error || `Error ${res.status}`);
-            });
-          }
-          return res.json();
-        })
-        .then((data) => {
-          setPrecio(data.precio_cierre);
-          setFechaReal(data.fecha_real);
-          setMoneda(data.moneda);
-          setError(null);
-        })
-        .catch((err) => {
-          if (err.name === 'AbortError') return; // Solicitud cancelada, ignorar
-          console.warn('[usePrecioHistorico] Error al obtener precio:', err.message);
-          setPrecio(null);
-          setFechaReal(null);
-          setMoneda(null);
-          setError(err.message);
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) {
-            setCargando(false);
-          }
-        });
     }, debounceMs);
 
-    // Cleanup: cancelar debounce y solicitud al desmontar o cambiar inputs
+    // Cleanup: solo cancelar el debounce timer, NO abortar el fetch
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
         debounceRef.current = null;
       }
-      if (abortRef.current) {
-        abortRef.current.abort();
-        abortRef.current = null;
-      }
-      setCargando(false);
     };
   }, [ticker, fecha, debounceMs, precioEditadoManualmente]);
 

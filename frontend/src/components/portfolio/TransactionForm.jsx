@@ -155,14 +155,21 @@ export default function TransactionForm({
   };
 
   const handleTickerKeyDownWrapper = (e) => {
-    // Let the autocomplete hook handle navigation keys
-    handleTickerKeyDown(e);
-    // If Enter was pressed and a suggestion was selected, sync to form
-    if (e.key === 'Enter' && indiceActivo >= 0 && sugerencias[indiceActivo]) {
-      setForm((prev) => ({ ...prev, ticker: sugerencias[indiceActivo] }));
+    // Always prevent Enter from submitting the form when in the ticker field
+    if (e.key === 'Enter') {
       e.preventDefault();
       e.stopPropagation();
+      // If a suggestion is selected, use it
+      if (indiceActivo >= 0 && sugerencias[indiceActivo]) {
+        handleTickerSelect(sugerencias[indiceActivo]);
+      } else if (sugerencias.length > 0 && dropdownAbierto) {
+        // If dropdown is open with suggestions but none selected, pick the first one
+        handleTickerSelect(sugerencias[0]);
+      }
+      return;
     }
+    // Let the autocomplete hook handle navigation keys
+    handleTickerKeyDown(e);
   };
 
   const validar = () => {
@@ -278,7 +285,7 @@ export default function TransactionForm({
                 id={listboxId}
                 role="listbox"
                 aria-label="Sugerencias de tickers"
-                className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg
+                className="absolute z-[60] mt-1 w-full max-h-48 overflow-y-auto rounded-lg
                            bg-bloomberg-panel border border-white/10 shadow-xl"
               >
                 {sugerencias.map((ticker, idx) => {

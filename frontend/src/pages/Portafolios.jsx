@@ -240,7 +240,7 @@ export default function Portafolios() {
   const handleOptimizarPortafolio = useCallback(async () => {
     if (!portafolioActivo || !posicionesActivas.length) return;
     const tickers = posicionesActivas
-      .filter((p) => p.cantidad > 0)
+      .filter((p) => p.ticker)
       .map((p) => p.ticker);
     if (tickers.length < 2) return;
 
