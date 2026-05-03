@@ -507,8 +507,6 @@ export default function Portafolios() {
           </div>
         </>
       )}
-        </div>
-      </Modal>
 
       {/* Modal: Crear portafolio */}
       <Modal abierto={modalCrear} onCerrar={() => setModalCrear(false)} titulo="Crear Portafolio">
