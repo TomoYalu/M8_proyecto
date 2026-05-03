@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
 import usePortfolio from '../hooks/usePortfolio';
-import useOptimizer from '../hooks/useOptimizer';
 import useWebSocket from '../hooks/useWebSocket';
 import useStore from '../store';
 
@@ -11,7 +10,6 @@ import TransactionForm from '../components/portfolio/TransactionForm';
 import PositionEditor from '../components/portfolio/PositionEditor';
 import FavoritosPanel from '../components/portfolio/FavoritosPanel';
 import SimulatorPanel from '../components/portfolio/SimulatorPanel';
-import OptimizerResults from '../components/optimizer/OptimizerResults';
 import Modal from '../components/common/Modal';
 import Spinner from '../components/common/Spinner';
 import ErrorMessage from '../components/common/ErrorMessage';
@@ -53,14 +51,7 @@ export default function Portafolios() {
   const preciosEnVivo = useStore((s) => s.preciosEnVivo);
   const { subscribe_portfolio, unsubscribe_portfolio } = useWebSocket();
 
-  // ─── Optimizer hook para optimización de portafolios ──────────
   const {
-    resultadoOptimizacion,
-    cargandoOptimizacion,
-    errorOptimizacion,
-    ejecutarOptimizacion,
-    limpiarResultados,
-  } = useOptimizer();
 
   // ─── Estado local de modales ──────────────────────────────────
   const [modalCrear, setModalCrear] = useState(false);
@@ -81,9 +72,7 @@ export default function Portafolios() {
   const [errorPosicionEditor, setErrorPosicionEditor] = useState(null);
   const [loadingPosicionEditor, setLoadingPosicionEditor] = useState(false);
 
-  // ─── Estado de vista y optimizador ────────────────────────────
   const [vistaActiva, setVistaActiva] = useState('portafolios'); // 'portafolios' | 'simulador'
-  const [modalOptimizador, setModalOptimizador] = useState(false);
 
   // ─── Carga inicial ────────────────────────────────────────────
   useEffect(() => {
@@ -278,31 +267,7 @@ export default function Portafolios() {
   // ─── Datos derivados ──────────────────────────────────────────
   const posicionesActivas = portafolioActivo ? (posiciones[portafolioActivo] ?? []) : [];
 
-  // ─── Handler: Optimizar portafolio existente ──────────────────
-  const handleOptimizarPortafolio = useCallback(async () => {
-    if (!portafolioActivo || !posicionesActivas.length) return;
-    const tickers = posicionesActivas
-      .filter((p) => p.ticker)
-      .map((p) => p.ticker);
-    if (tickers.length < 2) return;
 
-    setModalOptimizador(true);
-    try {
-      await ejecutarOptimizacion({
-        tickers,
-        portafolio_id: portafolioActivo,
-        periodo: '5y',
-      });
-    } catch {
-      // Error manejado por el hook
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [portafolioActivo, posicionesActivas, ejecutarOptimizacion]);
-
-  const handleCerrarOptimizador = useCallback(() => {
-    setModalOptimizador(false);
-    limpiarResultados();
-  }, [limpiarResultados]);
 
   // ─── Handler: Editar posición desde tabla (abre PositionEditor) ──
   const handleEditarPosicion = useCallback((posicion) => {
