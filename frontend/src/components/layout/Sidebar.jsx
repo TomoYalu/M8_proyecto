@@ -32,7 +32,7 @@ export default function Sidebar() {
               Lakshmi Q2
             </h2>
             <p className="text-xs text-bloomberg-text-muted mt-0.5">
-              Gestión de Inversiones
+              Gestión de Inversiones · v0.1.0
             </p>
           </div>
         )}
