@@ -18,40 +18,30 @@ import Spinner from '../common/Spinner';
 const COLORS = ['#0ea5e9','#06b6d4','#14b8a6','#10b981','#059669','#0284c7','#22d3ee','#2dd4bf'];
 
 export default function PortfolioDashboard({ portafolioId, posiciones }) {
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const fetchingRef = useRef(false);
 
-  const dashboardCache = useStore((s) => s.dashboardCache);
-  const dashboardDirty = useStore((s) => s.dashboardDirty);
+  const data = useStore((s) => s.dashboardCache[portafolioId] ?? null);
+  const dirty = useStore((s) => s.dashboardDirty[portafolioId] ?? false);
   const setDashboardCache = useStore((s) => s.setDashboardCache);
 
-  const data = dashboardCache[portafolioId] ?? null;
-  const dirty = dashboardDirty[portafolioId] ?? false;
   const needsFetch = !data || dirty;
 
   useEffect(() => {
     if (!portafolioId) return;
     const activas = (posiciones || []).filter(p => p.cantidad > 0 && p.precio_actual > 0);
     if (activas.length < 2) return;
-    if (!needsFetch) return;          // caché válido, no hacer nada
-    if (fetchingRef.current) return;  // ya hay un fetch en curso
+    if (!needsFetch) return;
+    if (fetchingRef.current) return;
 
     fetchingRef.current = true;
-    let cancelled = false;
-    setLoading(true);
     setError(null);
 
     fetch(`/api/portafolios/${portafolioId}/dashboard`)
       .then(r => { if (!r.ok) throw new Error('Error al cargar dashboard'); return r.json(); })
       .then(d => { setDashboardCache(portafolioId, d); })
-      .catch(e => { if (!cancelled) setError(e.message); })
-      .finally(() => {
-        fetchingRef.current = false;
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => { cancelled = true; };
+      .catch(e => { setError(e.message); })
+      .finally(() => { fetchingRef.current = false; });
   }, [portafolioId, needsFetch]);
 
   const activas = (posiciones || []).filter(p => p.cantidad > 0 && p.precio_actual > 0);
@@ -65,7 +55,6 @@ export default function PortfolioDashboard({ portafolioId, posiciones }) {
     );
   }
 
-  if (loading) return <Spinner mensaje="Calculando métricas del portafolio..." size="sm" />;
   if (error) return <p className="text-sm text-bloomberg-red py-4">{error}</p>;
   if (!data) return <Spinner mensaje="Calculando métricas del portafolio..." size="sm" />;
 
