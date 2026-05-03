@@ -36,7 +36,7 @@ export default function Sidebar() {
         {!collapsed && (
           <div className="px-2 cursor-pointer" onClick={() => navigate('/portafolios')}>
             <h2 className="font-serif text-4xl font-light tracking-wider text-bloomberg-text hover:opacity-80 transition-opacity">
-              Lakshm<span className="text-bloomberg-accent not-italic">i</span>.
+              Lakshm<span className="text-bloomberg-accent not-italic">i</span> Q2.
             </h2>
             <p className="text-sm text-bloomberg-text-muted mt-1 font-light tracking-wide">
               Gestión de Inversiones
