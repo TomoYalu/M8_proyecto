@@ -202,7 +202,7 @@ function SemaforoCompuestoIndicator({ resultado }) {
   return (
     <Tooltip texto={tooltipTexto}>
       <span
-        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border cursor-default ${chip.bg} ${chip.border} ${chip.color}`}
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border cursor-default ${chip.bg} ${chip.border} ${chip.color}`}
         role="img"
         aria-label={`Señal: ${chip.text}`}
       >
@@ -284,7 +284,7 @@ export default function PositionTable({ posiciones = [], preciosEnVivo = {}, onE
     <div className="overflow-x-auto rounded-lg border border-white/5">
       <table className="w-full text-sm" role="table" aria-label="Tabla de posiciones">
         <thead>
-          <tr className="text-bloomberg-text/70 text-xs uppercase tracking-[0.15em] border-b border-white/10">
+          <tr className="text-bloomberg-text/70 text-sm uppercase tracking-[0.15em] border-b border-white/10">
             <th className="text-left px-4 py-3.5 font-semibold" scope="col">Ticker</th>
             <th className="text-right px-4 py-3.5 font-semibold" scope="col">Cantidad</th>
             <th className="text-right px-4 py-3.5 font-semibold" scope="col">Precio Promedio</th>

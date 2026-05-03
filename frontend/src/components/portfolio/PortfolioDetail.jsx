@@ -187,7 +187,7 @@ export default function PortfolioDetail({
       {/* Header */}
       <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4 min-w-0">
-          <h2 className="text-lg font-semibold text-bloomberg-text truncate">
+          <h2 className="text-2xl font-semibold text-bloomberg-text truncate">
             {portafolio.nombre}
           </h2>
 
@@ -196,7 +196,7 @@ export default function PortfolioDetail({
           {/* Agregar Activo */}
           <button
             onClick={onRegistrarTransaccion}
-            className="px-3 py-1.5 text-xs rounded-lg bg-bloomberg-green/20 text-bloomberg-green
+            className="px-3 py-1.5 text-sm rounded-lg bg-bloomberg-green/20 text-bloomberg-green
                        hover:bg-bloomberg-green/30 transition-colors flex items-center gap-1.5"
             aria-label="Agregar nuevo activo"
           >
@@ -236,7 +236,7 @@ export default function PortfolioDetail({
             {generandoPDF ? (
               <div className="w-4 h-4 border-2 rounded-full border-bloomberg-accent border-t-transparent animate-spin" />
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none"
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none"
                 viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -323,7 +323,7 @@ export default function PortfolioDetail({
               aria-controls={`panel-${tab.id}`}
               id={`tab-${tab.id}`}
               onClick={() => setTabActiva(tab.id)}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors relative
+              className={`px-4 py-2.5 text-base font-medium transition-colors relative
                 ${tabActiva === tab.id
                   ? 'text-bloomberg-accent'
                   : 'text-bloomberg-text-muted hover:text-bloomberg-text'
@@ -570,14 +570,14 @@ function SummaryCards({ posiciones, analisisData, moneda = 'USD', preciosEnVivo 
             key={card.label}
             className="flex-1 min-w-[120px] bg-bloomberg-bg/50 rounded-lg px-3 py-2 border border-white/5"
           >
-            <p className="text-[10px] uppercase tracking-wider text-bloomberg-text-muted mb-0.5">
+            <p className="text-xs uppercase tracking-wider text-bloomberg-text-muted mb-0.5">
               {card.label}
             </p>
-            <p className={`text-sm font-semibold ${card.color || 'text-bloomberg-text'}`}>
+            <p className={`text-lg font-semibold ${card.color || 'text-bloomberg-text'}`}>
               {card.value}
             </p>
             {card.sub && (
-              <p className="text-[10px] text-bloomberg-text-muted">{card.sub}</p>
+              <p className="text-xs text-bloomberg-text-muted">{card.sub}</p>
             )}
           </div>
         ))}
