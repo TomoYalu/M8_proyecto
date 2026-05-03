@@ -69,6 +69,14 @@ def create_app(config_name=None):
         from .models import portafolio, alerta, noticia, widget, cache, universo, simulacion, configuracion  # noqa: F401
         db.create_all()
 
+        # Verificar que las tablas críticas existen
+        import logging
+        _log = logging.getLogger(__name__)
+        from sqlalchemy import inspect as sa_inspect
+        inspector = sa_inspect(db.engine)
+        tables = inspector.get_table_names()
+        _log.info("DB inicializada: %d tablas (%s)", len(tables), ", ".join(sorted(tables)[:5]) + ("..." if len(tables) > 5 else ""))
+
     # ── WebSocket event handlers ────────────────────────────────
     from .sockets import events  # noqa: F401
 
