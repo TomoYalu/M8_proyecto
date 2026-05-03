@@ -37,7 +37,7 @@ const RANGOS_HIST = [
 const plotLayout = (title) => ({
   paper_bgcolor: 'transparent',
   plot_bgcolor: 'transparent',
-  font: { color: BLOOMBERG.muted, size: 11 },
+  font: { color: '#e2e8f0', size: 12 },
   title: { text: title, font: { size: 13, color: BLOOMBERG.text }, x: 0.01, y: 0.98 },
   margin: { t: 35, r: 15, b: 35, l: 55 },
   xaxis: { gridcolor: BLOOMBERG.grid, showgrid: true },
@@ -90,8 +90,9 @@ export default function PortfolioCharts({ portafolioId, posiciones, moneda = 'US
     values: posActivas.map(p => p.valor_mercado),
     textinfo: 'label+percent',
     textposition: 'outside',
+    textfont: { family: 'monospace', color: '#e2e8f0' },
     marker: {
-      colors: ['#4cc9f0', '#00e676', '#ffd600', '#ff5252', '#7c4dff', '#ff6d00', '#00bcd4', '#e040fb'],
+      colors: ['#0ea5e9','#06b6d4','#14b8a6','#10b981','#059669','#0284c7','#22d3ee','#2dd4bf'],
     },
     hovertemplate: '%{label}: $%{value:,.2f} (%{percent})<extra></extra>',
   }] : null;
@@ -101,7 +102,7 @@ export default function PortfolioCharts({ portafolioId, posiciones, moneda = 'US
       {/* Fila 1: Donut + Histórico */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {/* Donut */}
-        <div className="bg-bloomberg-panel border border-white/5 rounded-xl p-4">
+        <div className="rounded-2xl p-5 bg-[#0a0e14] border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
           <h3 className="text-xs font-bold uppercase tracking-widest text-bloomberg-text-muted mb-3">
             Asignación del Portafolio
           </h3>
@@ -113,7 +114,7 @@ export default function PortfolioCharts({ portafolioId, posiciones, moneda = 'US
                 title: undefined,
                 margin: { t: 10, r: 10, b: 10, l: 10 },
                 showlegend: true,
-                legend: { font: { color: BLOOMBERG.muted, size: 10 }, orientation: 'h', y: -0.1 },
+                legend: { font: { color: '#e2e8f0', size: 10 }, bgcolor: 'rgba(0,0,0,0)', orientation: 'v', x: 1.02, y: 0.5 },
               }}
               config={{ displayModeBar: false, responsive: true }}
               useResizeHandler
@@ -127,7 +128,7 @@ export default function PortfolioCharts({ portafolioId, posiciones, moneda = 'US
         </div>
 
         {/* Valor histórico */}
-        <div className="bg-bloomberg-panel border border-white/5 rounded-xl p-4">
+        <div className="rounded-2xl p-5 bg-[#0a0e14] border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-xs font-bold uppercase tracking-widest text-bloomberg-text-muted">
               Valor Histórico
@@ -181,7 +182,7 @@ export default function PortfolioCharts({ portafolioId, posiciones, moneda = 'US
       </div>
 
       {/* Fila 2: Proyección */}
-      <div className="bg-bloomberg-panel border border-white/5 rounded-xl p-4">
+      <div className="rounded-2xl p-5 bg-[#0a0e14] border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
         <div className="flex items-center justify-between mb-3">
           <div>
             <h3 className="text-xs font-bold uppercase tracking-widest text-bloomberg-text-muted">

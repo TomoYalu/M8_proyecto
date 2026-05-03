@@ -785,10 +785,10 @@ function AllocationDonutSimple({ posiciones, moneda = 'USD' }) {
 
   const labels = activas.map(p => p.ticker);
   const values = activas.map(p => p.valor_mercado || p.precio_actual * p.cantidad);
-  const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316'];
+  const COLORS = ['#0ea5e9','#06b6d4','#14b8a6','#10b981','#059669','#0284c7','#22d3ee','#2dd4bf'];
 
   return (
-    <div className="mt-4 bg-bloomberg-bg/30 rounded-lg border border-white/5 p-4">
+    <div className="mt-4 rounded-2xl p-5 bg-[#0a0e14] border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
       <h4 className="text-xs font-medium text-bloomberg-text-muted uppercase tracking-wider mb-2">
         Distribución del Portafolio
       </h4>
@@ -801,15 +801,17 @@ function AllocationDonutSimple({ posiciones, moneda = 'USD' }) {
           marker: { colors: COLORS.slice(0, labels.length) },
           textinfo: 'label+percent',
           textposition: 'outside',
+          textfont: { family: 'monospace', color: '#e2e8f0' },
           hovertemplate: '%{label}<br>%{value:$,.2f}<br>%{percent}<extra></extra>',
         }]}
         layout={{
           paper_bgcolor: 'transparent',
           plot_bgcolor: 'transparent',
-          margin: { t: 10, r: 40, b: 10, l: 40 },
+          margin: { t: 10, r: 10, b: 10, l: 10 },
           height: 280,
-          showlegend: false,
-          font: { color: '#d1d5db', size: 11 },
+          showlegend: true,
+          legend: { font: { color: '#e2e8f0', size: 10 }, bgcolor: 'rgba(0,0,0,0)', orientation: 'v', x: 1.02, y: 0.5 },
+          font: { color: '#e2e8f0', size: 12 },
         }}
         config={{ responsive: true, displayModeBar: false }}
         useResizeHandler
