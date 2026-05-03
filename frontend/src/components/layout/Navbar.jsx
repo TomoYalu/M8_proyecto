@@ -93,7 +93,7 @@ export default function Navbar() {
       role="banner"
     >
       {/* Izquierda: título + contexto */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-baseline gap-4">
         <h1 className="text-4xl font-semibold tracking-wide text-bloomberg-text">
           {titulo}
         </h1>
