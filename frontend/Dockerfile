@@ -15,6 +15,11 @@ RUN npm ci --silent
 
 # Copiar código fuente y construir
 COPY . .
+
+# Variables de entorno para Vite (build-time)
+ARG VITE_ELEVENLABS_AGENT_ID
+ENV VITE_ELEVENLABS_AGENT_ID=$VITE_ELEVENLABS_AGENT_ID
+
 RUN npm run build
 
 # ── Stage 2: Servir con Nginx ────────────────────────────────────
