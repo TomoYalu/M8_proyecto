@@ -24,7 +24,7 @@ import pandas as pd
 import yfinance as yf
 
 from ..extensions import db
-from ..models.cache import PrecioCache
+from ..models.cache import PrecioCache, HistoricoCache
 
 logger = logging.getLogger(__name__)
 
@@ -230,6 +230,42 @@ def obtener_precios_multiples(tickers: list[str]) -> list[dict]:
     return resultados
 
 
+def _historico_cache_valido(cached, intervalo):
+    """Verifica si el caché histórico sigue vigente según el intervalo."""
+    if cached is None:
+        return False
+    edad = (_now_utc() - cached.updated_at).total_seconds()
+    # Datos diarios: válidos 12 horas. Mensuales: 24 horas. Intradía: 30 min.
+    if intervalo in ("1mo", "3mo"):
+        return edad < 86400
+    if intervalo == "1d":
+        return edad < 43200
+    return edad < 1800
+
+
+def _df_to_json(df):
+    """Serializa DataFrame OHLCV a JSON almacenable."""
+    records = []
+    for idx, row in df.iterrows():
+        records.append({
+            "date": idx.isoformat() if hasattr(idx, "isoformat") else str(idx),
+            "Open": float(row["Open"]),
+            "High": float(row["High"]),
+            "Low": float(row["Low"]),
+            "Close": float(row["Close"]),
+            "Volume": int(row["Volume"]) if pd.notna(row["Volume"]) else 0,
+        })
+    return records
+
+
+def _json_to_df(records):
+    """Reconstruye DataFrame desde JSON del caché."""
+    df = pd.DataFrame(records)
+    df["date"] = pd.to_datetime(df["date"], utc=True)
+    df = df.set_index("date")
+    return df
+
+
 def obtener_datos_historicos(
     ticker: str,
     periodo: str = "1y",
@@ -237,6 +273,7 @@ def obtener_datos_historicos(
 ) -> pd.DataFrame:
     """
     Obtiene datos históricos OHLCV de un ticker.
+    Usa caché en DB (historico_cache) para evitar llamadas repetidas a yfinance.
 
     Args:
         ticker: Símbolo bursátil.
@@ -249,6 +286,19 @@ def obtener_datos_historicos(
     Raises:
         ValueError: si el ticker no existe o tiene menos de 30 velas.
     """
+    # 1. Buscar en caché
+    cached = None
+    try:
+        cached = HistoricoCache.query.filter_by(
+            ticker=ticker, periodo=periodo, intervalo=intervalo
+        ).first()
+        if _historico_cache_valido(cached, intervalo):
+            logger.debug("Usando caché histórico para %s %s/%s", ticker, periodo, intervalo)
+            return _json_to_df(cached.datos)
+    except Exception:
+        pass  # Sin contexto de DB o tabla no existe aún
+
+    # 2. Descargar de yfinance
     try:
         ticker_obj = yf.Ticker(ticker)
         df = ticker_obj.history(period=periodo, interval=intervalo)
@@ -256,15 +306,19 @@ def obtener_datos_historicos(
         logger.error(
             "Error al obtener datos históricos de '%s': %s", ticker, str(e)
         )
+        # Fallback a caché expirado si existe
+        if cached is not None and cached.datos:
+            logger.info("Usando caché expirado para %s", ticker)
+            return _json_to_df(cached.datos)
         raise ValueError(
-            f"No se pudieron obtener datos históricos para '{ticker}'. "
-            f"Verifique que el ticker sea válido."
+            f"No se pudieron obtener datos históricos para '{ticker}'."
         ) from e
 
     if df is None or df.empty:
+        if cached is not None:
+            return _json_to_df(cached.datos)
         raise ValueError(
-            f"No se encontraron datos para el ticker '{ticker}'. "
-            f"Verifique que el símbolo sea correcto."
+            f"No se encontraron datos para el ticker '{ticker}'."
         )
 
     if len(df) < 30:
@@ -272,6 +326,23 @@ def obtener_datos_historicos(
             f"Datos insuficientes para '{ticker}': se obtuvieron {len(df)} velas, "
             f"se requieren al menos 30 para un análisis confiable."
         )
+
+    # 3. Guardar en caché
+    try:
+        records = _df_to_json(df)
+        if cached is None:
+            cached = HistoricoCache(ticker=ticker, periodo=periodo, intervalo=intervalo)
+            db.session.add(cached)
+        cached.datos = records
+        cached.num_velas = len(df)
+        cached.updated_at = _now_utc()
+        db.session.commit()
+    except Exception as e:
+        logger.warning("Error guardando caché histórico: %s", e)
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
 
     return df
 

@@ -95,3 +95,49 @@ class CicloCache(db.Model):
 
     def __repr__(self):
         return f"<CicloCache fase={self.fase} fuente={self.fuente}>"
+
+
+
+class HistoricoCache(db.Model):
+    """Caché de datos OHLCV históricos por ticker+periodo+intervalo."""
+
+    __tablename__ = "historico_cache"
+
+    id = db.Column(db.Integer, primary_key=True)
+    ticker = db.Column(db.String(20), nullable=False)
+    periodo = db.Column(db.String(10), nullable=False)
+    intervalo = db.Column(db.String(10), nullable=False)
+    datos = db.Column(db.JSON, nullable=False)
+    num_velas = db.Column(db.Integer, nullable=False, default=0)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint("ticker", "periodo", "intervalo", name="uq_historico_cache"),
+    )
+
+    def __repr__(self):
+        return f"<HistoricoCache {self.ticker} {self.periodo}/{self.intervalo}>"
+
+
+class DashboardCache(db.Model):
+    """Caché del resultado completo del dashboard por portafolio."""
+
+    __tablename__ = "dashboard_cache"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    portafolio_id = db.Column(db.Integer, nullable=False)
+    datos = db.Column(db.JSON, nullable=False)
+    calculated_at = db.Column(
+        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    dirty = db.Column(db.Boolean, nullable=False, default=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "portafolio_id", name="uq_dashboard_cache"),
+    )
+
+    def __repr__(self):
+        return f"<DashboardCache user={self.user_id} port={self.portafolio_id} dirty={self.dirty}>"

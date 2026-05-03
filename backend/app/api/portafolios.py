@@ -31,20 +31,21 @@ from datetime import date
 from flask import Blueprint, jsonify, request, g
 
 from ..services import portfolio_service as svc
+from ..extensions import db
 
 portafolios_bp = Blueprint(
     "portafolios", __name__, url_prefix="/api/portafolios"
 )
 
-# Caché en memoria para dashboard (evita re-descargar de yfinance)
-# Clave: (user_id, portafolio_id, fecha_str, pos_hash)
-_dashboard_cache = {}
-
-def _invalidar_dashboard_cache(user_id, portafolio_id):
-    """Elimina entradas de caché del dashboard para un portafolio."""
-    keys = [k for k in _dashboard_cache if k[0] == user_id and k[1] == portafolio_id]
-    for k in keys:
-        del _dashboard_cache[k]
+def _marcar_dashboard_dirty(user_id, portafolio_id):
+    """Marca el caché del dashboard como dirty (requiere recálculo)."""
+    from ..models.cache import DashboardCache
+    cached = DashboardCache.query.filter_by(
+        user_id=user_id, portafolio_id=portafolio_id
+    ).first()
+    if cached:
+        cached.dirty = True
+        db.session.commit()
 
 # ── user_id fijo (single-user, Req 11.2) ────────────────────────
 # ── Helpers ──────────────────────────────────────────────────────
@@ -258,6 +259,7 @@ def registrar_transaccion(portafolio_id: int):
             return _error(msg, 422)
         return _error(msg, 400)
 
+    _marcar_dashboard_dirty(g.user_id, portafolio_id)
     return jsonify(resultado), 201
 
 
@@ -279,7 +281,7 @@ def confirmar_transaccion(portafolio_id: int, transaccion_id: int):
             return _error(msg, 404)
         return _error(msg, 400)
 
-    _invalidar_dashboard_cache(g.user_id, portafolio_id)
+    _marcar_dashboard_dirty(g.user_id, portafolio_id)
     return jsonify(resultado), 200
 
 
@@ -299,6 +301,7 @@ def cancelar_transaccion(portafolio_id: int, transaccion_id: int):
             return _error(msg, 404)
         return _error(msg, 400)
 
+    _marcar_dashboard_dirty(g.user_id, portafolio_id)
     return jsonify(resultado), 200
 
 
@@ -550,13 +553,16 @@ def dashboard_portafolio(portafolio_id: int):
     if len(activas) < 2:
         return _error("Se requieren al menos 2 posiciones activas.", 400)
 
-    # ── Caché: misma fecha + mismas posiciones → respuesta inmediata ──
-    import hashlib as _hl
-    _pos_key = "|".join(f"{p['ticker']}:{p['cantidad']}" for p in sorted(activas, key=lambda x: x["ticker"]))
-    _pos_hash = _hl.md5(_pos_key.encode()).hexdigest()[:12]
-    _cache_key = (g.user_id, portafolio_id, str(datetime.date.today()), _pos_hash)
-    if _cache_key in _dashboard_cache:
-        return jsonify(_dashboard_cache[_cache_key]), 200
+    # ── Caché en DB: si existe, no está dirty y es del mismo día → retornar ──
+    from ..models.cache import DashboardCache
+    _db_cache = DashboardCache.query.filter_by(
+        user_id=g.user_id, portafolio_id=portafolio_id
+    ).first()
+    if (_db_cache
+        and not _db_cache.dirty
+        and _db_cache.calculated_at.date() == datetime.date.today()
+        and _db_cache.datos):
+        return jsonify(_db_cache.datos), 200
 
     tickers = [p["ticker"] for p in activas]
     valores = [p.get("valor_mercado") or p["precio_actual"] * p["cantidad"] for p in activas]
@@ -825,7 +831,17 @@ def dashboard_portafolio(portafolio_id: int):
         "twr": twr_data,
         "resumen_tecnico": resumen_tecnico,
     }
-    _dashboard_cache[_cache_key] = _result
+    # Guardar en DB cache
+    try:
+        if _db_cache is None:
+            _db_cache = DashboardCache(user_id=g.user_id, portafolio_id=portafolio_id)
+            db.session.add(_db_cache)
+        _db_cache.datos = _result
+        _db_cache.calculated_at = datetime.datetime.now(datetime.timezone.utc)
+        _db_cache.dirty = False
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
     return jsonify(_result), 200
 
 
