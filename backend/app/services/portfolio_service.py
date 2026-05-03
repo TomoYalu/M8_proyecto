@@ -591,9 +591,11 @@ def cancelar_transaccion(
             f"No se encontró la transacción con id {transaccion_id} en este portafolio."
         )
 
-    if transaccion.estado not in ("pendiente", "sin_fondos"):
+    if transaccion.estado not in ("pendiente", "sin_fondos"):
+
         raise ValueError(
-            "Solo se pueden cancelar transacciones pendientes."
+            "Solo se pueden cancelar transacciones pendientes."
+
         )
 
     # Revertir cambios en la posición
@@ -639,15 +641,12 @@ def refrescar_precios(portafolio_id: int, user_id: int) -> list[dict]:
     # Incluir todas las posiciones (también pool con cantidad=0) para refrescar precios
     posiciones = portafolio.posiciones.all()
 
-    tickers_sin_precio = [
-        pos.ticker for pos in posiciones
-        if pos.precio_actual is None or float(pos.precio_actual) <= 0
-    ]
+    tickers_a_refrescar = [pos.ticker for pos in posiciones if pos.ticker]
 
-    if not tickers_sin_precio:
+    if not tickers_a_refrescar:
         return _posiciones_con_pnl(portafolio)
 
-    precios = yfinance_service.obtener_precios_multiples(tickers_sin_precio)
+    precios = yfinance_service.obtener_precios_multiples(tickers_a_refrescar)
     precios_map = {r["ticker"]: r for r in precios if r.get("precio")}
 
     ahora = datetime.now(timezone.utc)
@@ -968,6 +967,19 @@ def _posiciones_con_pnl(portafolio: Portafolio) -> list[dict]:
     posiciones = portafolio.posiciones.all()
     resultado = []
 
+    # Obtener estado de última transacción por ticker
+    txs = (
+        Transaccion.query
+        .filter_by(portafolio_id=portafolio.id)
+        .order_by(Transaccion.created_at.desc())
+        .all()
+    )
+    estado_por_ticker = {}
+    for tx in txs:
+        if tx.ticker not in estado_por_ticker:
+            estado_por_ticker[tx.ticker] = {"estado": tx.estado, "tipo": tx.tipo}
+
+
     for pos in posiciones:
         cantidad = _dec(pos.cantidad)
         precio_promedio = _dec(pos.precio_promedio)
@@ -1003,8 +1015,11 @@ def _posiciones_con_pnl(portafolio: Portafolio) -> list[dict]:
                 pos.ultima_actualizacion.isoformat() if pos.ultima_actualizacion else None
             ),
             "created_at": pos.created_at.isoformat() if pos.created_at else None,
+            "estado": estado_por_ticker.get(pos.ticker, {}).get("estado", "confirmada"),
+            "tipo_tx": estado_por_ticker.get(pos.ticker, {}).get("tipo", "compra"),
             "updated_at": pos.updated_at.isoformat() if pos.updated_at else None,
         })
+
 
     return resultado
 

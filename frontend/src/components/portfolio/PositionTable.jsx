@@ -330,6 +330,7 @@ export default function PositionTable({ posiciones = [], preciosEnVivo = {}, onE
             <th className="text-right px-4 py-3 font-medium" scope="col">P&L Bruto</th>
             <th className="text-right px-4 py-3 font-medium" scope="col">P&L %</th>
             <th className="text-right px-4 py-3 font-medium" scope="col">Dividendos</th>
+            <th className="text-left px-4 py-3 font-medium" scope="col">Estado</th>
             {/* Columna de acciones (editar) */}
             <th className="w-10 px-2 py-3" scope="col">
               <span className="sr-only">Acciones</span>
@@ -467,6 +468,21 @@ export default function PositionTable({ posiciones = [], preciosEnVivo = {}, onE
                   {formatMoneda(pos.dividendos_acumulados, pos.moneda)}
                 </td>
 
+
+                {/* Estado */}
+                <td className="px-4 py-3 text-xs">
+                  {pos.estado === 'confirmada' ? (
+                    <span className="text-bloomberg-green/70">✓ Activo</span>
+                  ) : pos.estado === 'sin_fondos' ? (
+                    <span className="text-bloomberg-red">⚠ Sin fondos</span>
+                  ) : pos.estado === 'pendiente' ? (
+                    <span className="text-bloomberg-yellow">⏳ Pendiente</span>
+                  ) : pos.cantidad === 0 ? (
+                    <span className="text-bloomberg-text-muted">En pool</span>
+                  ) : (
+                    <span className="text-bloomberg-text-muted">—</span>
+                  )}
+                </td>
                 {/* Botón editar posición */}
                 <td className="px-2 py-3 text-center">
                   {onEditarPosicion && (

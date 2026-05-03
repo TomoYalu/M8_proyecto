@@ -31,7 +31,7 @@ export default function Tooltip({ texto, children, posicion = 'top' }) {
         <div
           className={`absolute z-40 px-3 py-2 rounded-lg text-xs whitespace-pre-line
                       bg-bloomberg-panel border border-white/10 shadow-lg
-                      text-bloomberg-text pointer-events-none max-w-xs
+                      text-bloomberg-text pointer-events-none min-w-[200px] max-w-sm
                       ${posiciones[posicion] || posiciones.top}`}
           role="tooltip"
           aria-live="polite"

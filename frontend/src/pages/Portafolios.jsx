@@ -604,7 +604,7 @@ export default function Portafolios() {
           </div>
           <div>
             <label htmlFor="crear-capital" className="block text-xs text-bloomberg-text-muted mb-1">
-              Capital inicial (presupuesto)
+              Límite de capital <span class="text-bloomberg-text-muted/50">(opcional)</span>
             </label>
             <div className="flex gap-2">
               <input
@@ -629,7 +629,7 @@ export default function Portafolios() {
               </select>
             </div>
             <p className="text-[10px] text-bloomberg-text-muted mt-0.5">
-              Monto total disponible para invertir en este portafolio
+              Opcional. Limita cuánto se puede invertir en este portafolio. Sin límite usa capital global.
             </p>
           </div>
           <div className="flex justify-end gap-3">
@@ -697,7 +697,7 @@ export default function Portafolios() {
           </div>
           <div>
             <label htmlFor="editar-capital" className="block text-xs text-bloomberg-text-muted mb-1">
-              Capital inicial (presupuesto)
+              Límite de capital <span class="text-bloomberg-text-muted/50">(opcional)</span>
             </label>
             <div className="flex gap-2">
               <input

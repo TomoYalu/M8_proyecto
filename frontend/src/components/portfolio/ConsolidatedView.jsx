@@ -151,10 +151,10 @@ export default function ConsolidatedView({ consolidado, onCapitalUpdated }) {
                   <tr key={p.id} className="hover:bg-white/[0.02] transition-colors">
                     <td className="px-3 py-2 text-bloomberg-text font-medium">{p.nombre}</td>
                     <td className="text-right px-3 py-2 text-bloomberg-text tabular-nums">
-                      {p.capital_inicial > 0 ? formatMoneda(p.capital_inicial, p.moneda) : <span className="text-bloomberg-text-muted">—</span>}
+                      {p.capital_inicial > 0 ? formatMoneda(p.capital_inicial, p.moneda) : <span className="text-[10px] text-bloomberg-text-muted">Global</span>}
                     </td>
                     <td className={`text-right px-3 py-2 tabular-nums ${capDisp > 0 ? 'text-bloomberg-green' : capDisp < 0 ? 'text-bloomberg-red' : 'text-bloomberg-text-muted'}`}>
-                      {p.capital_inicial > 0 ? formatMoneda(capDisp, p.moneda) : '—'}
+                      {p.capital_inicial > 0 ? formatMoneda(capDisp, p.moneda) : formatMoneda(capital_no_asignado, moneda_base)}
                     </td>
                     <td className="text-right px-3 py-2 text-bloomberg-text tabular-nums">
                       {sinPrecio && p.costo_total > 0 ? (

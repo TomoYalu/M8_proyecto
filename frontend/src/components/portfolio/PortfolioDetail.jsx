@@ -71,7 +71,7 @@ export default function PortfolioDetail({
     if (tickersActivos.length < 2) return; // Need at least 2 (Req 9.3)
     if (cargandoOptimizacion) return;
 
-    ejecutarOptimizacion({ tickers: tickersActivos })
+    ejecutarOptimizacion({ tickers: tickersActivos, portafolio_id: portafolio.id })
       .then((data) => {
         setAnalisisCache(data);
         setAnalisisExecuted(true);
@@ -87,7 +87,7 @@ export default function PortfolioDetail({
     setAnalisisCache(null);
     setAnalisisExecuted(false);
     limpiarResultados();
-    ejecutarOptimizacion({ tickers: tickersActivos })
+    ejecutarOptimizacion({ tickers: tickersActivos, portafolio_id: portafolio.id })
       .then((data) => {
         setAnalisisCache(data);
         setAnalisisExecuted(true);
