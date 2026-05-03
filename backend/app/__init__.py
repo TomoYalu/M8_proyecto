@@ -104,7 +104,7 @@ def create_app(config_name=None):
         from .models.user import User
         if User.query.filter_by(username="demo").first() is None:
             _log.info("Creando usuario demo...")
-            demo_user = User(username="demo", nombre="Usuario Demo")
+            demo_user = User(username="demo", email="demo@lakshmi.app", nombre="Usuario Demo")
             demo_user.set_password("demo")
             db.session.add(demo_user)
             db.session.commit()

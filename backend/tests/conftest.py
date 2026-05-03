@@ -42,7 +42,7 @@ def db(app):
         # Crear usuario de test (id=1) para que g.user_id funcione
         from app.models.user import User
         if not User.query.filter_by(username="test").first():
-            u = User(username="test", nombre="Test User")
+            u = User(username="test", email="test@lakshmi.app", nombre="Test User")
             u.set_password("test")
             _db.session.add(u)
             _db.session.commit()

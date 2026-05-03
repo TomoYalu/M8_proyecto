@@ -8,23 +8,53 @@
 import { useState } from 'react';
 import useStore from '../store';
 
+const EMAIL_RE = /^[a-zA-Z0-9](?:[a-zA-Z0-9._%+\-]*[a-zA-Z0-9])?@[a-zA-Z0-9\-]+(?:\.[a-zA-Z]{2,})+$/;
+
+function validarEmail(email) {
+  if (!email) return 'El correo electrónico es requerido.';
+  if (email.length > 254) return 'El correo es demasiado largo.';
+  if (!EMAIL_RE.test(email)) return 'Formato de correo inválido.';
+  const [, dominio] = email.split('@');
+  const partes = dominio.split('.');
+  if (partes.length < 2 || partes[partes.length - 1].length < 2) return 'Dominio de correo no válido.';
+  return null;
+}
+
 export default function Login() {
   const login = useStore((s) => s.login);
   const register = useStore((s) => s.register);
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [mode, setMode] = useState('login');
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleEmailChange = (e) => {
+    const val = e.target.value;
+    setEmail(val);
+    if (val && mode === 'register') {
+      setEmailError(validarEmail(val) || '');
+    } else {
+      setEmailError('');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (mode === 'register') {
+      const emailErr = validarEmail(email);
+      if (emailErr) { setEmailError(emailErr); return; }
+    }
+
     setLoading(true);
     const result = mode === 'login'
       ? await login(username, password)
-      : await register(username, password, nombre);
+      : await register(username, password, nombre, email);
     setLoading(false);
     if (!result.ok) setError(result.error);
   };
@@ -50,19 +80,41 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
-              <div>
-                <label className="block text-sm text-bloomberg-text-muted mb-1" htmlFor="nombre">
-                  Nombre (opcional)
-                </label>
-                <input
-                  id="nombre"
-                  type="text"
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  className="w-full bg-bloomberg-bg border border-white/10 rounded-lg px-3 py-2 text-bloomberg-text focus:outline-none focus:border-bloomberg-accent"
-                  placeholder="Tu nombre"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="block text-sm text-bloomberg-text-muted mb-1" htmlFor="nombre">
+                    Nombre (opcional)
+                  </label>
+                  <input
+                    id="nombre"
+                    type="text"
+                    value={nombre}
+                    onChange={(e) => setNombre(e.target.value)}
+                    className="w-full bg-bloomberg-bg border border-white/10 rounded-lg px-3 py-2 text-bloomberg-text focus:outline-none focus:border-bloomberg-accent"
+                    placeholder="Tu nombre"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-bloomberg-text-muted mb-1" htmlFor="email">
+                    Correo electrónico
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={handleEmailChange}
+                    className={`w-full bg-bloomberg-bg border rounded-lg px-3 py-2 text-bloomberg-text focus:outline-none focus:border-bloomberg-accent ${
+                      emailError ? 'border-bloomberg-red' : 'border-white/10'
+                    }`}
+                    placeholder="tu@correo.com"
+                    required
+                  />
+                  {emailError && (
+                    <p className="text-bloomberg-red text-xs mt-1">{emailError}</p>
+                  )}
+                </div>
+              </>
             )}
 
             <div>
@@ -102,7 +154,7 @@ export default function Login() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (mode === 'register' && !!emailError)}
               className="w-full bg-bloomberg-accent hover:bg-bloomberg-accent/80 text-white font-medium py-2 rounded-lg transition-colors disabled:opacity-50"
             >
               {loading ? '...' : mode === 'login' ? 'Entrar' : 'Registrarse'}
@@ -112,7 +164,7 @@ export default function Login() {
           <div className="mt-4 text-center">
             <button
               type="button"
-              onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}
+              onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setEmailError(''); }}
               className="text-sm text-bloomberg-accent hover:underline"
             >
               {mode === 'login' ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}

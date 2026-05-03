@@ -47,11 +47,11 @@ export const createAuthSlice = (set) => ({
   },
 
   /** Registro */
-  register: async (username, password, nombre) => {
+  register: async (username, password, nombre, email) => {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, nombre }),
+      body: JSON.stringify({ username, password, nombre, email }),
     });
     const data = await res.json();
     if (res.ok) {
