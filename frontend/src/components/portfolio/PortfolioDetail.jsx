@@ -31,6 +31,12 @@ import { BLOOMBERG_ACCENT } from '../../utils/colors';
  *
  * Requisitos cubiertos: 1.1–1.5, 2.6, 3.1–3.7, 9.1–9.5, 10.1–10.4, 12.1, 12.2, 12.4, 12.5, 12.7, plan-v1.1 B2
  */
+const PERFILES = {
+  conservador: { label: '🟢 Conservador', max_peso: 0.25, desc: 'Máximo 25% por activo' },
+  moderado: { label: '🟡 Moderado', max_peso: null, desc: 'Sin restricción de peso' },
+  agresivo: { label: '🔴 Agresivo', max_peso: 0.50, desc: 'Hasta 50% en un solo activo' },
+};
+
 export default function PortfolioDetail({
   portafolio,
   posiciones,
@@ -50,6 +56,7 @@ export default function PortfolioDetail({
   // ─── Análisis tab: optimizer cache (Req 9.5) ─────────────────
   const [analisisCache, setAnalisisCache] = useState(null);
   const [analisisExecuted, setAnalisisExecuted] = useState(false);
+  const [perfilAnalisis, setPerfilAnalisis] = useState('moderado');
   const {
     ejecutarOptimizacion,
     cargandoOptimizacion,
