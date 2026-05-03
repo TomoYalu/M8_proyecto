@@ -403,7 +403,13 @@ export default function TransactionForm({
           <div className="mb-4 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30
                           text-sm text-yellow-400 flex items-start gap-2" role="alert">
             <span className="shrink-0">⚠</span>
-            <span>Este portafolio no tiene capital asignado — la transacción quedará como <strong>pendiente</strong>.</span>
+            <span>
+              Este portafolio no tiene capital asignado — la transacción quedará como <strong>pendiente</strong>.{' '}
+              <button type="button" onClick={() => { onCerrar(); setTimeout(() => document.getElementById('capital-global-section')?.scrollIntoView({ behavior: 'smooth' }), 300); }}
+                className="underline text-bloomberg-accent hover:text-bloomberg-accent/80">
+                Configurar capital ↗
+              </button>
+            </span>
           </div>
         )}
         {capitalTotal > 0 && (

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { formatMoneda } from '../../utils/formatters';
 
 /**
@@ -20,7 +21,26 @@ export default function PortfolioSidebar({
   portafolioActivo,
   onSeleccionar,
   onCrear,
+  onDemoLoaded,
 }) {
+  const [demoDisponible, setDemoDisponible] = useState(false);
+  const [cargandoDemo, setCargandoDemo] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/portafolios/seed-demo', { method: 'POST' })
+      .then(r => { if (r.status !== 403) setDemoDisponible(true); })
+      .catch(() => {});
+  }, []);
+
+  const handleCargarDemo = async () => {
+    setCargandoDemo(true);
+    try {
+      const res = await fetch('/api/portafolios/seed-demo', { method: 'POST' });
+      if (res.ok) onDemoLoaded?.();
+    } catch (e) { console.error(e); }
+    finally { setCargandoDemo(false); }
+  };
+
   return (
     <aside
       className="w-full flex flex-col bg-bloomberg-panel rounded-xl
@@ -129,6 +149,17 @@ export default function PortfolioSidebar({
           })
         )}
       </div>
+      {/* Demo button */}
+      {demoDisponible && (
+        <div className="px-3 py-2 border-t border-white/5 shrink-0">
+          <button onClick={handleCargarDemo} disabled={cargandoDemo}
+            className="w-full px-3 py-1.5 text-xs rounded-lg bg-bloomberg-yellow/10 text-bloomberg-yellow
+                       border border-bloomberg-yellow/20 hover:bg-bloomberg-yellow/20
+                       disabled:opacity-50 transition-colors">
+            {cargandoDemo ? 'Cargando...' : '🧪 Cargar Demo'}
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

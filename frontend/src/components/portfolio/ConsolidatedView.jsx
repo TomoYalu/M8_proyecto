@@ -12,6 +12,7 @@ export default function ConsolidatedView({ consolidado, onCapitalUpdated }) {
   const [inputCapital, setInputCapital] = useState('');
   const [error, setError] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  const [confirmandoFaltante, setConfirmandoFaltante] = useState(false);
 
   useEffect(() => { fetchCapitalConfig(); }, [fetchCapitalConfig]);
 
@@ -34,6 +35,19 @@ export default function ConsolidatedView({ consolidado, onCapitalUpdated }) {
     finally { setGuardando(false); }
   }, [inputCapital, actualizarCapitalGlobal]);
 
+  const handleAgregarFaltante = useCallback(async () => {
+    if (!confirmandoFaltante) { setConfirmandoFaltante(true); return; }
+    const faltante = Math.abs(consolidado?.capital_no_asignado || 0);
+    const nuevoCapital = (capitalConfig?.capital_global || 0) + faltante;
+    setGuardando(true);
+    try {
+      await actualizarCapitalGlobal(nuevoCapital);
+      if (onCapitalUpdated) onCapitalUpdated();
+      setConfirmandoFaltante(false);
+    } catch (err) { setError(err.message); }
+    finally { setGuardando(false); }
+  }, [confirmandoFaltante, capital_no_asignado, capitalConfig, actualizarCapitalGlobal, onCapitalUpdated]);
+
   if (!consolidado) return null;
 
   const { valor_total, pnl_bruto, pnl_neto, isr_estimado, portafolios,
@@ -52,7 +66,7 @@ export default function ConsolidatedView({ consolidado, onCapitalUpdated }) {
       </h2>
 
       {/* Capital Global */}
-      <div className="mb-5 px-4 py-3 rounded-lg bg-bloomberg-bg/50 border border-white/5 flex items-center gap-4">
+      <div id="capital-global-section" className="mb-5 px-4 py-3 rounded-lg bg-bloomberg-bg/50 border border-white/5 flex items-center gap-4">
         <div className="flex items-center gap-4">
           <div>
             <p className="text-[10px] uppercase tracking-wider text-bloomberg-text-muted">Capital Global</p>
@@ -105,6 +119,30 @@ export default function ConsolidatedView({ consolidado, onCapitalUpdated }) {
             <p className={`text-lg font-semibold tabular-nums ${capital_no_asignado > 0 ? 'text-bloomberg-green' : capital_no_asignado < 0 ? 'text-bloomberg-red' : 'text-bloomberg-text-muted'}`}>
               {formatMoneda(capital_no_asignado, moneda_base)}
             </p>
+            {capital_no_asignado < 0 && (
+              <div className="flex items-center gap-2 mt-1">
+                {confirmandoFaltante ? (
+                  <>
+                    <span className="text-[10px] text-bloomberg-text-muted">
+                      ¿Agregar {formatMoneda(Math.abs(capital_no_asignado), moneda_base)} al capital?
+                    </span>
+                    <button onClick={handleAgregarFaltante} disabled={guardando}
+                      className="px-2 py-0.5 text-[10px] rounded bg-bloomberg-green/20 text-bloomberg-green hover:bg-bloomberg-green/30 disabled:opacity-50">
+                      {guardando ? '...' : 'Sí'}
+                    </button>
+                    <button onClick={() => setConfirmandoFaltante(false)}
+                      className="px-2 py-0.5 text-[10px] rounded bg-white/5 text-bloomberg-text-muted hover:bg-white/10">
+                      No
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={() => setConfirmandoFaltante(true)}
+                    className="text-[10px] text-bloomberg-accent hover:text-bloomberg-accent/80 underline">
+                    Agregar faltante
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

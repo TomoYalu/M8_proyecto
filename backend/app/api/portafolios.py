@@ -311,3 +311,69 @@ def obtener_historico(portafolio_id: int):
     except ValueError as e:
         return _error(str(e), 404)
     return jsonify(resultado), 200
+
+@portafolios_bp.route("/seed-demo", methods=["POST"])
+def seed_demo():
+    """Crea un portafolio demo con activos de prueba. Solo si LAKSHMI_DEMO=1."""
+    import os as _os
+    if _os.environ.get("LAKSHMI_DEMO") != "1":
+        return jsonify({"error": "Demo no habilitado."}), 403
+
+    from ..services import portfolio_service as svc
+    from ..models.configuracion import ConfiguracionUsuario
+    from ..extensions import db
+    from datetime import date
+    from decimal import Decimal
+
+    user_id = _USER_ID
+
+    # Configurar capital global si es 0
+    config = ConfiguracionUsuario.query.filter_by(user_id=user_id).first()
+    if not config:
+        config = ConfiguracionUsuario(user_id=user_id, capital_global=50000, moneda_base="MXN")
+        db.session.add(config)
+    elif float(config.capital_global) <= 0:
+        config.capital_global = Decimal("50000")
+    db.session.commit()
+
+    # Crear portafolio demo
+    try:
+        p = svc.crear_portafolio(user_id, "Demo", capital_inicial=0)
+    except ValueError:
+        from ..models.portafolio import Portafolio
+        p_obj = Portafolio.query.filter_by(user_id=user_id, nombre="Demo").first()
+        if p_obj:
+            return jsonify({"mensaje": "Portafolio Demo ya existe.", "id": p_obj.id}), 200
+        raise
+
+    pid = p["id"]
+    hoy = date.today()
+
+    activos = [
+        ("AAPL", 10, "USD"),
+        ("GLD", 5, "USD"),
+        ("MSFT", 8, "USD"),
+        ("PG", 15, "USD"),
+    ]
+
+    for ticker, cantidad, moneda in activos:
+        try:
+            from ..services.yfinance_service import obtener_precio_cierre_historico
+            datos = obtener_precio_cierre_historico(ticker, hoy)
+            precio = datos["precio_cierre"]
+        except Exception:
+            precio = 100  # fallback
+
+        svc.registrar_transaccion(
+            pid, user_id, ticker, "compra", hoy,
+            precio, cantidad, 0, moneda, estado="confirmada",
+        )
+
+    # Refrescar precios
+    svc.refrescar_precios(pid, user_id)
+
+    return jsonify({
+        "mensaje": f"Portafolio Demo creado con {len(activos)} activos.",
+        "id": pid,
+    }), 201
+
