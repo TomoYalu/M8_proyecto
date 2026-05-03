@@ -703,5 +703,13 @@ function AnalisisPanel({ tickersActivos, analisisData, cargando, error, portafol
 
   return (
     <div className="space-y-4">
+      <OptimizerResults
+        resultado={analisisData}
+        cargando={cargando}
+        error={error}
+        portafolioId={portafolioId}
+      />
+    </div>
   );
+
 }
