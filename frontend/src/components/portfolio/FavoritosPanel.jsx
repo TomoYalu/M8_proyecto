@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import useStore from '../../store';
 import { contadorFavoritos } from '../../store/favoritosSlice';
 import { obtenerNombre } from '../../constants/tickers';
@@ -62,7 +63,7 @@ export default function FavoritosPanel({ onAgregar }) {
             />
           </svg>
           <h3 className="text-sm font-semibold text-bloomberg-text-muted uppercase tracking-wider">
-            En espera
+            Favoritos
           </h3>
           {/* Badge con contador */}
           {count > 0 && (
@@ -88,9 +89,12 @@ export default function FavoritosPanel({ onAgregar }) {
               <p className="text-sm text-bloomberg-text-muted">
                 Sin favoritos aún
               </p>
-              <p className="text-xs text-bloomberg-text-muted/60 mt-1">
-                Usa la ★ en la búsqueda para agregar tickers aquí.
-              </p>
+              <Link
+                to="/busqueda"
+                className="inline-block mt-2 text-xs text-bloomberg-accent hover:underline"
+              >
+                🔍 Ir al buscador de activos
+              </Link>
             </div>
           ) : (
             <ul className="divide-y divide-white/5" role="list" aria-label="Lista de favoritos">
