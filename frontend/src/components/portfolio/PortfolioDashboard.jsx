@@ -5,7 +5,8 @@
  * Institución: Tecnológico de Monterrey
  * Fecha de creación: 2026-05-03
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import useStore from '../../store';
 import Plot from 'react-plotly.js';
 import Spinner from '../common/Spinner';
 
@@ -17,28 +18,35 @@ import Spinner from '../common/Spinner';
 const COLORS = ['#0ea5e9','#06b6d4','#14b8a6','#10b981','#059669','#0284c7','#22d3ee','#2dd4bf'];
 
 export default function PortfolioDashboard({ portafolioId, posiciones }) {
-  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const prevId = useRef(null);
+  const { dashboardCache, setDashboardCache } = useStore();
+
+  // Hash de posiciones activas para detectar cambios
+  const posHash = useMemo(() => {
+    const activas = (posiciones || []).filter(p => p.cantidad > 0 && p.precio_actual > 0);
+    return activas.map(p => `${p.ticker}:${p.cantidad}`).sort().join('|');
+  }, [posiciones]);
+
+  const cached = dashboardCache[portafolioId];
+  const data = cached?.posHash === posHash ? cached.data : null;
 
   useEffect(() => {
     if (!portafolioId) return;
     const activas = (posiciones || []).filter(p => p.cantidad > 0 && p.precio_actual > 0);
-    if (activas.length < 2) { setData(null); return; }
-    if (prevId.current === portafolioId && data) return;
-    prevId.current = portafolioId;
+    if (activas.length < 2) return;
+    if (data) return; // ya cacheado con mismas posiciones
 
     let cancelled = false;
     setLoading(true);
     setError(null);
     fetch(`/api/portafolios/${portafolioId}/dashboard`)
       .then(r => { if (!r.ok) throw new Error('Error al cargar dashboard'); return r.json(); })
-      .then(d => { if (!cancelled) setData(d); })
+      .then(d => { if (!cancelled) setDashboardCache(portafolioId, d, posHash); })
       .catch(e => { if (!cancelled) setError(e.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [portafolioId, posiciones?.length]);
+  }, [portafolioId, posHash, data]);
 
   const activas = (posiciones || []).filter(p => p.cantidad > 0 && p.precio_actual > 0);
   if (activas.length < 2) {

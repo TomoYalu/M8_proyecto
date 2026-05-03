@@ -12,6 +12,7 @@ export const createPortfolioSlice = (set, get) => ({
   posiciones: {},        // { portafolio_id: [posicion, ...] }
   transacciones: {},     // { portafolio_id: { items, total, pagina, paginas } }
   consolidado: null,
+  dashboardCache: {},   // { portafolio_id: { data, posHash } }
 
   // ─── Portafolios CRUD ─────────────────────────────────────────
 
@@ -111,7 +112,8 @@ export const createPortfolioSlice = (set, get) => ({
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al registrar transacción');
     // Refrescar posiciones y transacciones tras registrar
-    const { fetchPosiciones, fetchTransacciones } = get();
+    const { fetchPosiciones, fetchTransacciones, invalidateDashboardCache } = get();
+    invalidateDashboardCache(id);
     await Promise.all([fetchPosiciones(id), fetchTransacciones(id)]);
     return data;
   },
@@ -141,6 +143,16 @@ export const createPortfolioSlice = (set, get) => ({
   },
 
   // ─── Selección ────────────────────────────────────────────────
+
+  setDashboardCache: (id, data, posHash) => set((state) => ({
+    dashboardCache: { ...state.dashboardCache, [id]: { data, posHash } },
+  })),
+
+  invalidateDashboardCache: (id) => set((state) => {
+    const c = { ...state.dashboardCache };
+    delete c[id];
+    return { dashboardCache: c };
+  }),
 
   setPortafolioActivo: (id) => set({ portafolioActivo: id }),
 });

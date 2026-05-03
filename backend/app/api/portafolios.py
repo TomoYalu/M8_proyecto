@@ -36,6 +36,16 @@ portafolios_bp = Blueprint(
     "portafolios", __name__, url_prefix="/api/portafolios"
 )
 
+# Caché en memoria para dashboard (evita re-descargar de yfinance)
+# Clave: (user_id, portafolio_id, fecha_str, pos_hash)
+_dashboard_cache = {}
+
+def _invalidar_dashboard_cache(user_id, portafolio_id):
+    """Elimina entradas de caché del dashboard para un portafolio."""
+    keys = [k for k in _dashboard_cache if k[0] == user_id and k[1] == portafolio_id]
+    for k in keys:
+        del _dashboard_cache[k]
+
 # ── user_id fijo (single-user, Req 11.2) ────────────────────────
 # ── Helpers ──────────────────────────────────────────────────────
 
@@ -269,6 +279,7 @@ def confirmar_transaccion(portafolio_id: int, transaccion_id: int):
             return _error(msg, 404)
         return _error(msg, 400)
 
+    _invalidar_dashboard_cache(g.user_id, portafolio_id)
     return jsonify(resultado), 200
 
 
@@ -539,6 +550,14 @@ def dashboard_portafolio(portafolio_id: int):
     if len(activas) < 2:
         return _error("Se requieren al menos 2 posiciones activas.", 400)
 
+    # ── Caché: misma fecha + mismas posiciones → respuesta inmediata ──
+    import hashlib as _hl
+    _pos_key = "|".join(f"{p['ticker']}:{p['cantidad']}" for p in sorted(activas, key=lambda x: x["ticker"]))
+    _pos_hash = _hl.md5(_pos_key.encode()).hexdigest()[:12]
+    _cache_key = (g.user_id, portafolio_id, str(datetime.date.today()), _pos_hash)
+    if _cache_key in _dashboard_cache:
+        return jsonify(_dashboard_cache[_cache_key]), 200
+
     tickers = [p["ticker"] for p in activas]
     valores = [p.get("valor_mercado") or p["precio_actual"] * p["cantidad"] for p in activas]
     valor_total = sum(valores)
@@ -783,7 +802,7 @@ def dashboard_portafolio(portafolio_id: int):
     except Exception as e:
         logger.warning("Error calculando TWR: %s", e)
 
-    return jsonify({
+    _result = {
         "tickers": tickers_ok,
         "pesos": {t: round(float(w[i] * 100), 2) for i, t in enumerate(tickers_ok)},
         "valor_total": round(valor_total, 2),
@@ -805,7 +824,9 @@ def dashboard_portafolio(portafolio_id: int):
         },
         "twr": twr_data,
         "resumen_tecnico": resumen_tecnico,
-    }), 200
+    }
+    _dashboard_cache[_cache_key] = _result
+    return jsonify(_result), 200
 
 
 # ── Backtesting ──────────────────────────────────────────────────
