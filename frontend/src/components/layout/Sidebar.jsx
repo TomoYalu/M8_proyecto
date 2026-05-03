@@ -6,7 +6,7 @@
  * Fecha de creación: 2026-05-02
  */
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 
 const navItems = [
   { to: '/portafolios',  label: 'Portafolios',          icon: '💼' },
@@ -23,6 +23,7 @@ const navItems = [
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <aside
@@ -36,8 +37,8 @@ export default function Sidebar() {
       {/* Encabezado */}
       <div className="px-3 py-5 border-b border-white/5 flex items-center justify-between">
         {!collapsed && (
-          <div className="px-2">
-            <h2 className="text-lg font-bold text-bloomberg-accent tracking-wide">
+          <div className="px-2 cursor-pointer" onClick={() => navigate('/portafolios')}>
+            <h2 className="text-lg font-bold text-bloomberg-accent tracking-wide hover:text-bloomberg-accent/80 transition-colors">
               Lakshmi Q2
             </h2>
             <p className="text-xs text-bloomberg-text-muted mt-0.5">
