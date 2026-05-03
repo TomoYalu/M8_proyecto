@@ -27,8 +27,8 @@ export default function PortfolioSidebar({
   const [cargandoDemo, setCargandoDemo] = useState(false);
 
   useEffect(() => {
-    fetch('/api/portafolios/seed-demo', { method: 'POST' })
-      .then(r => { if (r.status !== 403) setDemoDisponible(true); })
+    fetch('/api/portafolios/seed-demo')
+      .then(r => { if (r.ok) setDemoDisponible(true); })
       .catch(() => {});
   }, []);
 

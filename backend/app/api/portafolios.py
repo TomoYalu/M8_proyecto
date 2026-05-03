@@ -312,6 +312,14 @@ def obtener_historico(portafolio_id: int):
         return _error(str(e), 404)
     return jsonify(resultado), 200
 
+@portafolios_bp.route("/seed-demo", methods=["GET"])
+def check_demo():
+    """Verifica si el modo demo está habilitado."""
+    import os as _os
+    if _os.environ.get("LAKSHMI_DEMO") == "1":
+        return jsonify({"demo": True}), 200
+    return jsonify({"demo": False}), 403
+
 @portafolios_bp.route("/seed-demo", methods=["POST"])
 def seed_demo():
     """Crea un portafolio demo con activos de prueba. Solo si LAKSHMI_DEMO=1."""

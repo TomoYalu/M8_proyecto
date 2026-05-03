@@ -46,7 +46,7 @@ export default function ConsolidatedView({ consolidado, onCapitalUpdated }) {
       setConfirmandoFaltante(false);
     } catch (err) { setError(err.message); }
     finally { setGuardando(false); }
-  }, [confirmandoFaltante, capital_no_asignado, capitalConfig, actualizarCapitalGlobal, onCapitalUpdated]);
+  }, [confirmandoFaltante, consolidado, capitalConfig, actualizarCapitalGlobal, onCapitalUpdated]);
 
   if (!consolidado) return null;
 
