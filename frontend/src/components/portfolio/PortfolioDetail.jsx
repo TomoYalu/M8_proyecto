@@ -299,6 +299,7 @@ export default function PortfolioDetail({
               hidden={tabActiva !== 'analisis'}
             >
               {tabActiva === 'analisis' && (
+                <>
                 {/* Selector de perfil */}
                 <div className="flex items-center gap-2 mb-4">
                   {Object.entries(PERFILES).map(([key, p]) => (
@@ -324,6 +325,7 @@ export default function PortfolioDetail({
                   onReOptimizar={handleReOptimizar}
                   portafolioId={portafolio.id}
                 />
+                </>
               )}
             </div>
           </>
