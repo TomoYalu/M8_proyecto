@@ -400,8 +400,8 @@ class TestAutoPendienteCapital:
             p["id"], USER_ID, "AAPL", "compra", date(2024, 1, 15),
             150, 100, 0, "USD",  # costo = 15000 > 10000
         )
-        assert tx["estado"] == "pendiente"
-        assert "capital insuficiente" in tx["notas"].lower()
+        assert tx["estado"] == "sin_fondos"
+        assert "Capital insuficiente" in tx["notas"]
 
     def test_compra_dentro_de_capital_confirmada(self, db):
         """Compra dentro del capital disponible se confirma normalmente."""
@@ -413,13 +413,13 @@ class TestAutoPendienteCapital:
         assert tx["estado"] == "confirmada"
 
     def test_compra_sin_capital_inicial_no_aplica(self, db):
-        """Sin capital_inicial (0), compra queda como pendiente."""
+        """Sin capital_inicial (0), compra queda como sin_fondos."""
         p = svc.crear_portafolio(USER_ID, "Sin Cap", capital_inicial=0)
         tx = svc.registrar_transaccion(
             p["id"], USER_ID, "AAPL", "compra", date(2024, 1, 15),
             150, 1000, 0, "USD",  # costo = 150000 pero capital = 0
         )
-        assert tx["estado"] == "pendiente"
+        assert tx["estado"] == "sin_fondos"
 
     def test_compra_con_capital_parcialmente_invertido(self, db):
         """Compra que excede capital disponible (no total) se marca pendiente."""
@@ -434,7 +434,7 @@ class TestAutoPendienteCapital:
             p["id"], USER_ID, "MSFT", "compra", date(2024, 1, 16),
             100, 100, 0, "USD",
         )
-        assert tx2["estado"] == "pendiente"
+        assert tx2["estado"] == "sin_fondos"
 
     def test_dividendo_no_aplica_auto_pending(self, db):
         """Dividendos no se ven afectados por auto-pending."""
@@ -454,7 +454,7 @@ class TestAutoPendienteCapital:
             150, 100, 0, "USD",
             notas="Mi nota personal",
         )
-        assert tx["estado"] == "pendiente"
+        assert tx["estado"] == "sin_fondos"
         assert "capital insuficiente" in tx["notas"].lower()
         assert "Mi nota personal" in tx["notas"]
 

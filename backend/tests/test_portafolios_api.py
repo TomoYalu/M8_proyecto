@@ -572,7 +572,7 @@ class TestAutoPendienteAPI:
         resp = _compra(client, pid, "AAPL", 150, 100)  # costo = 15000 > 10000
         assert resp.status_code == 201
         data = resp.get_json()
-        assert data["estado"] == "pendiente"
+        assert data["estado"] == "sin_fondos"
 
     def test_compra_dentro_capital_confirmada(self, client):
         """Compra dentro del capital se confirma."""
@@ -593,4 +593,4 @@ class TestAutoPendienteAPI:
         resp = _compra(client, pid, "AAPL", 150, 1000)
         assert resp.status_code == 201
         data = resp.get_json()
-        assert data["estado"] == "pendiente"
+        assert data["estado"] == "sin_fondos"

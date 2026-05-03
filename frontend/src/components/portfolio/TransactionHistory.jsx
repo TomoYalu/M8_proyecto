@@ -141,14 +141,24 @@ export default function TransactionHistory({
                       : '—'}
                   </td>
                   <td className="px-4 py-3">
-                    {tx.estado === 'pendiente' ? (
-                      <Badge texto="Pendiente" variante="amarillo" ariaLabel="Transacción pendiente de confirmación" />
+                    {tx.estado === 'confirmada' ? (
+                      <span className="text-xs text-bloomberg-green/70">✓ Confirmada</span>
+                    ) : tx.estado === 'sin_fondos' ? (
+                      <span className="flex flex-col">
+                        <Badge texto="Sin fondos" variante="rojo" />
+                        <span className="text-[10px] text-bloomberg-text-muted mt-0.5">Capital insuficiente</span>
+                      </span>
                     ) : (
-                      <span className="text-xs text-bloomberg-text-muted">Confirmada</span>
+                      <span className="flex flex-col">
+                        <Badge texto="Pendiente" variante="amarillo" />
+                        <span className="text-[10px] text-bloomberg-text-muted mt-0.5">
+                          {tx.cantidad > 0 ? `En espera (${tx.tipo})` : 'En pool'}
+                        </span>
+                      </span>
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {tx.estado === 'pendiente' && portafolioId && (
+                    {(tx.estado === 'pendiente' || tx.estado === 'sin_fondos') && portafolioId && (
                       <div className="flex items-center gap-1.5">
                         <button
                           type="button"

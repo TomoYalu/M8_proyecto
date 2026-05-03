@@ -256,6 +256,10 @@ def vista_consolidada(user_id: int) -> dict:
     capital_global = float(_dec(config.capital_global)) if config else 0
     total_asignado = sum(float(_dec(p.capital_inicial)) for p in portafolios)
     capital_no_asignado = capital_global - total_asignado
+    # Restar invertido en portafolios sin límite local
+    for rp, p in zip(resumen_portafolios, portafolios):
+        if float(_dec(p.capital_inicial)) <= 0:
+            capital_no_asignado -= rp["costo_total"]
 
 
     return {
@@ -351,8 +355,12 @@ def registrar_transaccion(
                 disponible = capital_global - total_invertido
 
         if costo_tx > disponible:
-            estado = "pendiente"
-            notas_prefix = "Marcada como pendiente: capital insuficiente"
+            if estado != "pendiente":
+
+                estado = "sin_fondos"
+
+            notas_prefix = "Capital insuficiente"
+
             notas = f"{notas_prefix}. {notas}" if notas else notas_prefix
 
     if tipo == "compra":
@@ -514,7 +522,7 @@ def confirmar_transaccion(
             f"No se encontró la transacción con id {transaccion_id} en este portafolio."
         )
 
-    if transaccion.estado != "pendiente":
+    if transaccion.estado not in ("pendiente", "sin_fondos"):
         raise ValueError(
             "Solo se pueden confirmar transacciones con estado 'pendiente'."
         )
@@ -583,9 +591,9 @@ def cancelar_transaccion(
             f"No se encontró la transacción con id {transaccion_id} en este portafolio."
         )
 
-    if transaccion.estado != "pendiente":
+    if transaccion.estado not in ("pendiente", "sin_fondos"):
         raise ValueError(
-            "Solo se pueden cancelar transacciones con estado 'pendiente'."
+            "Solo se pueden cancelar transacciones pendientes."
         )
 
     # Revertir cambios en la posición

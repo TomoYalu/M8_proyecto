@@ -29,7 +29,7 @@ export default function Tooltip({ texto, children, posicion = 'top' }) {
 
       {visible && (
         <div
-          className={`absolute z-40 px-3 py-1.5 rounded-lg text-xs
+          className={`absolute z-40 px-3 py-2 rounded-lg text-xs whitespace-pre-line
                       bg-bloomberg-panel border border-white/10 shadow-lg
                       text-bloomberg-text pointer-events-none max-w-xs
                       ${posiciones[posicion] || posiciones.top}`}

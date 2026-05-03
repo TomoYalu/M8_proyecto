@@ -66,6 +66,7 @@ export default function TransactionForm({
   // ─── Dividendo toggle ─────────────────────────────────────────
   const [esDividendo, setEsDividendo] = useState(false);
 
+  const [marcarCompletada, setMarcarCompletada] = useState(false);
   // ─── Allocation state ─────────────────────────────────────────
   const [montoInvertir, setMontoInvertir] = useState('');
   const [porcentaje, setPorcentaje] = useState('');
@@ -140,6 +141,7 @@ export default function TransactionForm({
       setCantidadManual(false);
       setEsDividendo(false);
     }
+      setMarcarCompletada(capitalTotal > 0);
   }, [abierto, setTickerQuery, setPrecioEditadoManualmente]);
 
   // ─── Sync autocomplete selection → form state ─────────────────
@@ -317,10 +319,10 @@ export default function TransactionForm({
     if (form.comision !== '' && Number(form.comision) < 0) {
       errores.comision = 'La comisión no puede ser negativa.';
     }
-    if (!esDividendo && precioNum > 0 && cantidadNum < 1) {
-      errores.cantidad = 'La cantidad debe ser al menos 1.';
+    if (marcarCompletada && !esDividendo && precioNum > 0 && cantidadNum < 1) {
+      errores.cantidad = 'La cantidad debe ser al menos 1 para transacciones completadas.';
     }
-    if (!esDividendo && montoInvertir && precioNum > parseFloat(montoInvertir)) {
+    if (marcarCompletada && !esDividendo && montoInvertir && precioNum > parseFloat(montoInvertir)) {
       errores.cantidad = `El precio unitario (${formatMoneda(precioNum, form.moneda)}) excede el monto a invertir.`;
     }
 
@@ -333,14 +335,22 @@ export default function TransactionForm({
     if (!validar()) return;
 
     const tipo = esDividendo ? 'dividendo' : 'compra';
-    const estado = autoPendiente ? 'pendiente' : 'confirmada';
+    const cant = Number(form.cantidad) || 0;
+    let estado;
+    if (!marcarCompletada) {
+      estado = cant > 0 ? 'pendiente' : 'pendiente';
+    } else if (autoPendiente) {
+      estado = 'sin_fondos';
+    } else {
+      estado = 'confirmada';
+    }
 
     onSubmit({
       ticker: form.ticker.trim().toUpperCase(),
       tipo,
       fecha: form.fecha,
       precio_unitario: Number(form.precio_unitario) || 0,
-      cantidad: Number(form.cantidad) || 0,
+      cantidad: cant,
       comision: esDividendo ? 0 : Number(form.comision) || 0,
       moneda: form.moneda,
       notas: form.notas.trim() || null,
@@ -513,6 +523,29 @@ export default function TransactionForm({
             )}
           </div>
 
+
+          {/* Checkbox: Marcar como transacción completada */}
+          {!esDividendo && (
+            <div className="col-span-2">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={marcarCompletada}
+                  onChange={(e) => setMarcarCompletada(e.target.checked)}
+                  className="w-4 h-4 rounded border-white/20 bg-bloomberg-bg text-bloomberg-accent
+                             focus:ring-bloomberg-accent focus:ring-offset-0 cursor-pointer"
+                />
+                <span className="text-sm text-bloomberg-text-muted">
+                  Marcar como transacción completada
+                </span>
+              </label>
+              {!marcarCompletada && (
+                <p className="text-[10px] text-bloomberg-text-muted mt-1 ml-6">
+                  Se guardará como transacción pendiente. Podrás confirmarla después.
+                </p>
+              )}
+            </div>
+          )}
           {/* Precio unitario with auto-fill and loading indicator (Task 6.2) */}
           <div>
             <label htmlFor="tx-precio" className="block text-xs text-bloomberg-text-muted mb-1">

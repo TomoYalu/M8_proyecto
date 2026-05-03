@@ -170,7 +170,7 @@ function generarTooltipSemaforo(resultado) {
     lineas.push('Noticias: sin datos');
   }
 
-  return lineas.join(' · ');
+  return lineas.join('\n');
 }
 
 /**

@@ -52,7 +52,7 @@ export default function ConsolidatedView({ consolidado, onCapitalUpdated }) {
       </h2>
 
       {/* Capital Global */}
-      <div className="mb-5 px-4 py-3 rounded-lg bg-bloomberg-bg/50 border border-white/5 flex items-center justify-between gap-4">
+      <div className="mb-5 px-4 py-3 rounded-lg bg-bloomberg-bg/50 border border-white/5 flex items-center gap-4">
         <div className="flex items-center gap-4">
           <div>
             <p className="text-[10px] uppercase tracking-wider text-bloomberg-text-muted">Capital Global</p>
@@ -81,9 +81,19 @@ export default function ConsolidatedView({ consolidado, onCapitalUpdated }) {
                 </button>
               </div>
             ) : (
-              <p className="text-xl font-bold text-bloomberg-text tabular-nums">
-                {formatMoneda(capital_global, moneda_base)}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-xl font-bold text-bloomberg-text tabular-nums">
+                  {formatMoneda(capital_global, moneda_base)}
+                </p>
+                <button onClick={handleEditar}
+                  className="p-1 rounded text-bloomberg-text-muted hover:text-bloomberg-accent hover:bg-white/5 transition-colors"
+                  aria-label="Editar capital global" title="Editar capital">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+              </div>
             )}
             {error && <p className="text-xs text-bloomberg-red mt-1">{error}</p>}
           </div>
@@ -98,16 +108,7 @@ export default function ConsolidatedView({ consolidado, onCapitalUpdated }) {
           </div>
         </div>
 
-        {!editando && (
-          <button onClick={handleEditar}
-            className="p-1.5 rounded-lg text-bloomberg-text-muted hover:text-bloomberg-accent hover:bg-white/5 transition-colors"
-            aria-label="Editar capital global" title="Editar capital">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
-        )}
+
       </div>
 
       {/* Métricas principales */}
