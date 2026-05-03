@@ -109,7 +109,7 @@ def crear_portafolio(user_id: int, nombre: str, descripcion: str = None, moneda:
 
 def listar_portafolios(user_id: int) -> list[dict]:
     """Devuelve todos los portafolios del usuario."""
-    portafolios = Portafolio.query.filter_by(user_id=user_id).all()
+    portafolios = Portafolio.query.filter_by(user_id=user_id).order_by(Portafolio.orden, Portafolio.id).all()
     return [_portafolio_to_dict(p) for p in portafolios]
 
 
@@ -206,7 +206,7 @@ def vista_consolidada(user_id: int) -> dict:
     Devuelve la vista agregada de todos los portafolios del usuario:
     valor total, P&L bruto total y P&L neto total.
     """
-    portafolios = Portafolio.query.filter_by(user_id=user_id).all()
+    portafolios = Portafolio.query.filter_by(user_id=user_id).order_by(Portafolio.orden, Portafolio.id).all()
 
     valor_total = Decimal("0")
     pnl_bruto_total = Decimal("0")
@@ -1043,6 +1043,7 @@ def _portafolio_to_dict(portafolio: Portafolio) -> dict:
         "capital_inicial": float(_dec(portafolio.capital_inicial)),
         "fecha_creacion": portafolio.fecha_creacion.isoformat(),
         "updated_at": portafolio.updated_at.isoformat() if portafolio.updated_at else None,
+        "orden": portafolio.orden,
     }
 
 

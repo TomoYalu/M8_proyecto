@@ -14,7 +14,7 @@ import Spinner from '../common/Spinner';
  * Muestra: métricas de riesgo, correlación, contribución al riesgo,
  * crecimiento de $1, drawdown, y resumen técnico por ticker.
  */
-const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316'];
+const COLORS = ['#0ea5e9','#06b6d4','#14b8a6','#10b981','#059669','#0284c7','#22d3ee','#2dd4bf'];
 
 export default function PortfolioDashboard({ portafolioId, posiciones }) {
   const [data, setData] = useState(null);
@@ -436,12 +436,12 @@ function BacktestPanel({ portafolioId }) {
 
 function Panel({ title, children }) {
   return (
-    <div className="bg-bloomberg-bg/30 rounded-lg border border-white/5 p-4">
+    <div className="rounded-2xl p-5 bg-[#0a0e14] border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
       <h4 className="text-xs font-medium text-bloomberg-text-muted uppercase tracking-wider mb-3">{title}</h4>
       {children}
     </div>
   );
 }
 
-const plotDefaults = { paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { color: '#d1d5db', size: 11 }, showlegend: false };
+const plotDefaults = { paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { color: '#e2e8f0', size: 12 }, showlegend: true, legend: { font: { color: '#e2e8f0', size: 10 }, bgcolor: 'rgba(0,0,0,0)' } };
 const plotConfig = { responsive: true, displayModeBar: false };

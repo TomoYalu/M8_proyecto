@@ -94,6 +94,13 @@ export default function Portafolios() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ─── Auto-seleccionar primer portafolio si ninguno seleccionado ──
+  useEffect(() => {
+    if (!cargaInicial && !portafolioActivo && portafolios.length > 0) {
+      setPortafolioActivo(portafolios[0].id);
+    }
+  }, [cargaInicial, portafolioActivo, portafolios, setPortafolioActivo]);
+
   // ─── Refrescar portafolios al cambiar a pestaña "Portafolios" (Req 5.2) ──
   useEffect(() => {
     if (vistaActiva === 'portafolios' && !cargaInicial) {
@@ -129,6 +136,17 @@ export default function Portafolios() {
   }, [portafolioActivo]);
 
   // ─── Handlers ─────────────────────────────────────────────────
+
+  const handleReordenar = useCallback(async (ids) => {
+    try {
+      await fetch('/api/portafolios/reordenar', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      await fetchPortafolios();
+    } catch {}
+  }, [fetchPortafolios]);
 
   const handleSeleccionar = useCallback(
     (id) => {
@@ -437,6 +455,7 @@ export default function Portafolios() {
                 portafolioActivo={portafolioActivo}
                 onSeleccionar={handleSeleccionar}
                 onCrear={handleAbrirCrear}
+                onReordenar={handleReordenar}
                 />
 
               {/* Panel de favoritos de sesión (B3) */}

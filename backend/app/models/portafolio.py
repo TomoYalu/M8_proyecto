@@ -26,6 +26,7 @@ class Portafolio(db.Model):
     descripcion = db.Column(db.Text)
     moneda = db.Column(db.String(3), nullable=False, default="MXN")
     capital_inicial = db.Column(db.Numeric(18, 2), nullable=False, default=0)
+    orden = db.Column(db.Integer, nullable=False, default=0)
     fecha_creacion = db.Column(
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )

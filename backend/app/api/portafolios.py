@@ -372,6 +372,26 @@ def check_demo():
         return jsonify({"demo": True}), 200
     return jsonify({"demo": False}), 403
 
+
+@portafolios_bp.route("/reordenar", methods=["PUT"])
+def reordenar_portafolios():
+    """Actualiza el orden de los portafolios. Body: { ids: [id1, id2, ...] }"""
+    from ..models.portafolio import Portafolio
+    from ..extensions import db
+
+    data = request.get_json(silent=True) or {}
+    ids = data.get("ids", [])
+    if not ids:
+        return _error("Lista de IDs requerida.", 400)
+
+    for i, pid in enumerate(ids):
+        p = Portafolio.query.filter_by(id=pid, user_id=g.user_id).first()
+        if p:
+            p.orden = i
+    db.session.commit()
+    return jsonify({"mensaje": "Orden actualizado."}), 200
+
+
 @portafolios_bp.route("/seed-demo", methods=["POST"])
 def seed_demo():
     """Crea un portafolio demo con activos de prueba."""
@@ -433,8 +453,35 @@ def seed_demo():
     # Refrescar precios
     svc.refrescar_precios(pid, user_id)
 
+    # ── Segundo portafolio demo (Tech Growth) ────────────────────
+    try:
+        p2 = svc.crear_portafolio(user_id, "Tech Growth", capital_inicial=0)
+        pid2 = p2["id"]
+        activos2 = [
+            ("NVDA", 6, "USD", 75),
+            ("GOOGL", 4, "USD", 50),
+            ("AMZN", 5, "USD", 40),
+            ("META", 7, "USD", 25),
+        ]
+        for ticker, cantidad, moneda, dias_atras in activos2:
+            fecha_compra = hoy - timedelta(days=dias_atras)
+            while fecha_compra.weekday() >= 5:
+                fecha_compra -= timedelta(days=1)
+            try:
+                datos = obtener_precio_cierre_historico(ticker, fecha_compra)
+                precio = datos["precio_cierre"]
+            except Exception:
+                precio = 150
+            svc.registrar_transaccion(
+                pid2, user_id, ticker, "compra", fecha_compra,
+                precio, cantidad, 0, moneda, estado="confirmada",
+            )
+        svc.refrescar_precios(pid2, user_id)
+    except Exception:
+        pass  # Si falla el segundo, no bloquear
+
     return jsonify({
-        "mensaje": f"Portafolio Demo creado con {len(activos)} activos.",
+        "mensaje": f"Portafolios Demo creados.",
         "id": pid,
     }), 201
 
