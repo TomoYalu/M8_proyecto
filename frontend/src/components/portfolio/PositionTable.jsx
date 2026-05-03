@@ -208,10 +208,11 @@ function SemaforoCompuestoIndicator({ resultado }) {
  * @param {object} props
  * @param {Array} props.posiciones - Lista de posiciones
  * @param {object} [props.preciosEnVivo] - Precios en tiempo real del store
+ * @param {function} [props.onEditarPosicion] - Callback para editar una posición (abre TransactionForm pre-llenado)
  *
  * Requisitos cubiertos: 3.1–3.7, 6.5, 11.1–11.6, 12.2, 12.4, 12.7
  */
-export default function PositionTable({ posiciones = [], preciosEnVivo = {} }) {
+export default function PositionTable({ posiciones = [], preciosEnVivo = {}, onEditarPosicion }) {
   const [semaforos, setSemaforos] = useState({});
   const [rsiData, setRsiData] = useState({});
   const [drawerTicker, setDrawerTicker] = useState(null);
@@ -298,13 +299,21 @@ export default function PositionTable({ posiciones = [], preciosEnVivo = {} }) {
 
   const esMX = (ticker) => ticker?.endsWith('.MX');
 
-  const precioDesactualizado = (pos) => {
-    if (!pos.ultima_actualizacion) return true;
-    const ahora = new Date();
-    const ultima = new Date(pos.ultima_actualizacion);
-    const diffMs = ahora - ultima;
-    // Considerar desactualizado si tiene más de 30 minutos
-    return diffMs > 30 * 60 * 1000;
+  /**
+   * Formatea fecha para tooltip del precio: "dd/mm/yyyy HH:mm".
+   * @param {string} fechaISO - Fecha en formato ISO
+   * @returns {string} Fecha formateada
+   */
+  const formatFechaTooltip = (fechaISO) => {
+    if (!fechaISO) return 'Nunca actualizado';
+    const d = new Date(fechaISO);
+    if (isNaN(d.getTime())) return 'Nunca actualizado';
+    const dia = String(d.getDate()).padStart(2, '0');
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const anio = d.getFullYear();
+    const hora = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${dia}/${mes}/${anio} ${hora}:${min}`;
   };
 
   return (
@@ -321,6 +330,10 @@ export default function PositionTable({ posiciones = [], preciosEnVivo = {} }) {
             <th className="text-right px-4 py-3 font-medium" scope="col">P&L Bruto</th>
             <th className="text-right px-4 py-3 font-medium" scope="col">P&L %</th>
             <th className="text-right px-4 py-3 font-medium" scope="col">Dividendos</th>
+            {/* Columna de acciones (editar) */}
+            <th className="w-10 px-2 py-3" scope="col">
+              <span className="sr-only">Acciones</span>
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-white/5">
@@ -331,6 +344,7 @@ export default function PositionTable({ posiciones = [], preciosEnVivo = {} }) {
             const pnlColor = pos.pnl_bruto >= 0 ? 'text-bloomberg-green' : 'text-bloomberg-red';
             const pnlPctColor = pos.pnl_porcentual >= 0 ? 'text-bloomberg-green' : 'text-bloomberg-red';
             const desactualizado = precioDesactualizado(pos) && !precioVivo;
+            const esPool = pos.cantidad === 0;
 
             // Semáforo compuesto por activo (Req 11.1–11.6)
             const cambioPct = precioVivo?.cambio_pct ?? pos.cambio_pct ?? null;
@@ -338,10 +352,20 @@ export default function PositionTable({ posiciones = [], preciosEnVivo = {} }) {
             const semaforoNoticias = semaforos[pos.ticker]?.semaforo ?? null;
             const semaforoCompuesto = calcularSemaforoCompuesto(cambioPct, rsi, semaforoNoticias);
 
+            // Tooltip de fecha de actualización del precio
+            const tooltipPrecio = pos.ultima_actualizacion
+              ? `Actualizado: ${formatFechaTooltip(pos.ultima_actualizacion)}`
+              : 'Nunca actualizado';
+
+            // Clases de fila: resaltar en rojo sutil si precio pendiente
+            const rowClasses = pendiente
+              ? 'bg-bloomberg-red/5 border-l-2 border-l-bloomberg-red/40 hover:bg-bloomberg-red/10 transition-colors duration-150'
+              : 'hover:bg-white/[0.04] transition-colors duration-150';
+
             return (
               <tr
                 key={pos.id}
-                className="hover:bg-white/[0.04] transition-colors duration-150"
+                className={rowClasses}
               >
                 {/* Ticker con semáforos y badges */}
                 <td className="px-4 py-3">
@@ -377,34 +401,52 @@ export default function PositionTable({ posiciones = [], preciosEnVivo = {} }) {
                     {esMX(pos.ticker) && (
                       <Badge texto="Delay 15 min" variante="amarillo" ariaLabel="Precio con retraso de 15 minutos" />
                     )}
-                    {desactualizado && !pendiente && (
-                      <span
-                        className="text-xs text-bloomberg-yellow flex items-center gap-1"
-                        title={`Última actualización: ${pos.ultima_actualizacion ? formatFecha(pos.ultima_actualizacion, true) : 'nunca'}`}
-                        aria-label="Precio desactualizado"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none"
-                          viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Desactualizado
-                      </span>
-                    )}
                   </div>
                 </td>
 
+                {/* Cantidad con badge "Pool" si cantidad === 0 */}
                 <td className="text-right px-4 py-3 text-bloomberg-text font-mono tabular-nums">
-                  {formatNumero(pos.cantidad, pos.cantidad % 1 === 0 ? 0 : 2)}
+                  <div className="flex items-center justify-end gap-2">
+                    {esPool && (
+                      <span
+                        className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium
+                                   bg-bloomberg-accent/10 text-bloomberg-accent/70 border border-bloomberg-accent/20"
+                        aria-label="Ticker en pool de análisis"
+                      >
+                        Pool
+                      </span>
+                    )}
+                    {formatNumero(pos.cantidad, pos.cantidad % 1 === 0 ? 0 : 2)}
+                  </div>
                 </td>
 
+                {/* Precio Promedio — "—" si es pool con precio 0 */}
                 <td className="text-right px-4 py-3 text-bloomberg-text font-mono tabular-nums">
-                  {formatMoneda(pos.precio_promedio, pos.moneda)}
+                  {esPool && pos.precio_promedio === 0 ? '—' : formatMoneda(pos.precio_promedio, pos.moneda)}
                 </td>
 
-                {/* Precio Actual — "—" si pendiente (Req 3.1) */}
+                {/* Precio Actual — badge rojo si pendiente, tooltip con fecha de actualización */}
                 <td className="text-right px-4 py-3 text-bloomberg-text font-mono tabular-nums">
-                  {pendiente ? '—' : formatMoneda(precioMostrar, pos.moneda)}
+                  {pendiente ? (
+                    <Tooltip texto={tooltipPrecio} posicion="top">
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs
+                                   bg-bloomberg-red/10 text-bloomberg-red border border-bloomberg-red/20"
+                        aria-label="Precio no disponible"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none"
+                          viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                        Sin precio
+                      </span>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip texto={tooltipPrecio} posicion="top">
+                      <span>{formatMoneda(precioMostrar, pos.moneda)}</span>
+                    </Tooltip>
+                  )}
                 </td>
 
                 {/* Valor de Mercado — "—" si pendiente (Req 3.1) */}
@@ -424,6 +466,39 @@ export default function PositionTable({ posiciones = [], preciosEnVivo = {} }) {
 
                 <td className="text-right px-4 py-3 text-bloomberg-text font-mono tabular-nums">
                   {formatMoneda(pos.dividendos_acumulados, pos.moneda)}
+                </td>
+
+                {/* Botón editar posición */}
+                <td className="px-2 py-3 text-center">
+                  {onEditarPosicion && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditarPosicion(pos);
+                      }}
+                      className="p-1 rounded-md text-bloomberg-text-muted hover:text-bloomberg-accent
+                                 hover:bg-white/5 transition-colors"
+                      title={`Editar posición de ${pos.ticker}`}
+                      aria-label={`Editar posición de ${pos.ticker}`}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                    </button>
+                  )}
                 </td>
               </tr>
             );

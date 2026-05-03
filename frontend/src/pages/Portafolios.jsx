@@ -261,6 +261,15 @@ export default function Portafolios() {
     setModalOptimizador(false);
     limpiarResultados();
   }, [limpiarResultados]);
+
+  // ─── Handler: Editar posición desde tabla (abre TransactionForm pre-llenado) ──
+  const handleEditarPosicion = useCallback((posicion) => {
+    if (!posicion?.ticker) return;
+    setTickerPrellenado(posicion.ticker);
+    setModalTransaccion(true);
+    setErrorLocal(null);
+  }, []);
+
   const transaccionesActivas = portafolioActivo ? transacciones[portafolioActivo] : null;
   const portafolioSeleccionado = portafolios.find((p) => p.id === portafolioActivo);
 
@@ -409,6 +418,7 @@ export default function Portafolios() {
                   setErrorLocal(null);
                 }}
                 onOptimizar={handleOptimizarPortafolio}
+                onEditarPosicion={handleEditarPosicion}
               />
             ) : (
               <div

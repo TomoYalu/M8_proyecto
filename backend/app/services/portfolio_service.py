@@ -339,7 +339,8 @@ def refrescar_precios(portafolio_id: int, user_id: int) -> list[dict]:
     Requisitos: 13.1, 13.2, 13.3, 13.4
     """
     portafolio = _get_portafolio(portafolio_id, user_id)
-    posiciones = portafolio.posiciones.filter(Posicion.cantidad > 0).all()
+    # Incluir todas las posiciones (también pool con cantidad=0) para refrescar precios
+    posiciones = portafolio.posiciones.all()
 
     tickers_sin_precio = [
         pos.ticker for pos in posiciones
