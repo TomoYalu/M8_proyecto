@@ -179,14 +179,12 @@ export default function ExchangeRateBanner() {
         │
       </span>
 
-      {/* Última actualización */}
-      <span className="text-xs text-bloomberg-text-muted">
-        {ultimaAct}
-      </span>
-
-      {/* Reloj en vivo */}
-      <span className="text-xs font-mono text-bloomberg-text-muted ml-auto tabular-nums">
-        {reloj.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      {/* Reloj en vivo con fecha */}
+      <span className="text-sm font-mono text-bloomberg-text ml-auto tabular-nums">
+        {reloj.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+        {' · '}
+        {reloj.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'America/Mexico_City' })}
+        <span className="text-bloomberg-text-muted ml-1 text-xs">CDMX</span>
       </span>
     </div>
   );

@@ -187,19 +187,28 @@ function generarTooltipSemaforo(resultado) {
  * @param {object} props
  * @param {object} props.resultado - Resultado de calcularSemaforoCompuesto
  */
+const SIGNAL_CHIP = {
+  verde:    { text: 'Alcista',  bg: 'bg-bloomberg-green/15', border: 'border-bloomberg-green/30', color: 'text-bloomberg-green' },
+  amarillo: { text: 'Neutral',  bg: 'bg-bloomberg-yellow/15', border: 'border-bloomberg-yellow/30', color: 'text-bloomberg-yellow' },
+  rojo:     { text: 'Bajista',  bg: 'bg-bloomberg-red/15', border: 'border-bloomberg-red/30', color: 'text-bloomberg-red' },
+};
+
 function SemaforoCompuestoIndicator({ resultado }) {
   if (!resultado) return null;
 
-  const colorClass = SEMAFORO_ACTIVO_COLORS[resultado.color] || 'bg-bloomberg-text-muted/40';
+  const chip = SIGNAL_CHIP[resultado.color] || SIGNAL_CHIP.amarillo;
   const tooltipTexto = generarTooltipSemaforo(resultado);
 
   return (
     <Tooltip texto={tooltipTexto}>
       <span
-        className={`inline-block w-3 h-3 rounded-full shadow-sm ${colorClass} cursor-default`}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border cursor-default ${chip.bg} ${chip.border} ${chip.color}`}
         role="img"
-        aria-label={`Semáforo compuesto: ${SEMAFORO_ACTIVO_LABELS[resultado.color]}`}
-      />
+        aria-label={`Señal: ${chip.text}`}
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${SEMAFORO_ACTIVO_COLORS[resultado.color]}`} />
+        {chip.text}
+      </span>
     </Tooltip>
   );
 }
@@ -275,23 +284,23 @@ export default function PositionTable({ posiciones = [], preciosEnVivo = {}, onE
     <div className="overflow-x-auto rounded-lg border border-white/5">
       <table className="w-full text-sm" role="table" aria-label="Tabla de posiciones">
         <thead>
-          <tr className="bg-bloomberg-panel/50 text-bloomberg-text-muted text-xs uppercase tracking-wider">
-            <th className="text-left px-4 py-3 font-medium" scope="col">Ticker</th>
-            <th className="text-right px-4 py-3 font-medium" scope="col">Cantidad</th>
-            <th className="text-right px-4 py-3 font-medium" scope="col">Precio Promedio</th>
-            <th className="text-right px-4 py-3 font-medium" scope="col">Precio Actual</th>
-            <th className="text-right px-4 py-3 font-medium" scope="col">Valor de Mercado</th>
-            <th className="text-right px-4 py-3 font-medium" scope="col">P&L Bruto</th>
-            <th className="text-right px-4 py-3 font-medium" scope="col">P&L %</th>
-            <th className="text-right px-4 py-3 font-medium" scope="col">Dividendos</th>
-            <th className="text-left px-4 py-3 font-medium" scope="col">Estado</th>
+          <tr className="text-bloomberg-text/70 text-xs uppercase tracking-[0.15em] border-b border-white/10">
+            <th className="text-left px-4 py-3.5 font-semibold" scope="col">Ticker</th>
+            <th className="text-right px-4 py-3.5 font-semibold" scope="col">Cantidad</th>
+            <th className="text-right px-4 py-3.5 font-semibold" scope="col">Precio Promedio</th>
+            <th className="text-right px-4 py-3.5 font-semibold" scope="col">Precio Actual</th>
+            <th className="text-right px-4 py-3.5 font-semibold" scope="col">Valor de Mercado</th>
+            <th className="text-right px-4 py-3.5 font-semibold" scope="col">P&L Bruto</th>
+            <th className="text-right px-4 py-3.5 font-semibold" scope="col">P&L %</th>
+            <th className="text-right px-4 py-3.5 font-semibold" scope="col">Dividendos</th>
+            <th className="text-left px-4 py-3.5 font-semibold" scope="col">Estado</th>
             {/* Columna de acciones (editar) */}
             <th className="w-10 px-2 py-3" scope="col">
               <span className="sr-only">Acciones</span>
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/5">
+        <tbody className="divide-y divide-white/[0.07]">
           {posiciones.map((pos) => {
             const precioVivo = preciosEnVivo[pos.ticker];
             const pendiente = esPrecioPendiente(pos);
@@ -314,7 +323,7 @@ export default function PositionTable({ posiciones = [], preciosEnVivo = {}, onE
             // Clases de fila: resaltar en rojo sutil si precio pendiente
             const rowClasses = pendiente
               ? 'bg-bloomberg-red/5 border-l-2 border-l-bloomberg-red/40 hover:bg-bloomberg-red/10 transition-colors duration-150'
-              : 'hover:bg-white/[0.04] transition-colors duration-150';
+              : 'hover:bg-white/[0.06] transition-colors duration-150';
 
             return (
               <tr
@@ -326,23 +335,9 @@ export default function PositionTable({ posiciones = [], preciosEnVivo = {}, onE
                   <div className="flex items-center gap-2">
                     {/* Favorito */}
                     <FavoritoStar ticker={pos.ticker} />
-                    {/* Semáforo compuesto por activo (Req 11.1, 11.6) */}
+                    {/* Señal compuesta (combina cambio diario + RSI + noticias) */}
                     <SemaforoCompuestoIndicator resultado={semaforoCompuesto} />
-                    {/* Semáforo de noticias */}
-                    {semaforos[pos.ticker] ? (
-                      <SemaforoIndicator
-                        semaforo={semaforos[pos.ticker].semaforo}
-                        score={semaforos[pos.ticker].score}
-                        fecha={semaforos[pos.ticker].fecha}
-                      />
-                    ) : (
-                      <span
-                        className="inline-block w-3 h-3 rounded-full border border-bloomberg-text-muted/40"
-                        aria-label="Semáforo de noticias sin datos"
-                        title="Sin datos de noticias"
-                      />
-                    )}
-                    <span className="font-medium text-bloomberg-text">
+                    <span className="font-medium text-bloomberg-text text-sm">
                       <button
                         type="button"
                         onClick={() => handleTickerClick(pos.ticker)}
