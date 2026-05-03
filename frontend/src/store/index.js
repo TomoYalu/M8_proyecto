@@ -7,6 +7,7 @@ import { createAlertSlice } from './alertSlice';
 import { createFavoritosSlice } from './favoritosSlice';
 import { createOptimizerSlice } from './optimizerSlice';
 import { createSimulatorSlice } from './simulatorSlice';
+import { createCapitalSlice } from './capitalSlice';
 
 /**
  * Store principal de Zustand que combina todos los slices.
@@ -20,6 +21,7 @@ const useStore = create((...args) => ({
   ...createFavoritosSlice(...args),
   ...createOptimizerSlice(...args),
   ...createSimulatorSlice(...args),
+  ...createCapitalSlice(...args),
 
   // ─── WebSocket (estado base) ──────────────────────────────────
   wsConnected: false,

@@ -413,13 +413,13 @@ class TestAutoPendienteCapital:
         assert tx["estado"] == "confirmada"
 
     def test_compra_sin_capital_inicial_no_aplica(self, db):
-        """Sin capital_inicial (0), no se aplica auto-pending."""
+        """Sin capital_inicial (0), compra queda como pendiente."""
         p = svc.crear_portafolio(USER_ID, "Sin Cap", capital_inicial=0)
         tx = svc.registrar_transaccion(
             p["id"], USER_ID, "AAPL", "compra", date(2024, 1, 15),
             150, 1000, 0, "USD",  # costo = 150000 pero capital = 0
         )
-        assert tx["estado"] == "confirmada"
+        assert tx["estado"] == "pendiente"
 
     def test_compra_con_capital_parcialmente_invertido(self, db):
         """Compra que excede capital disponible (no total) se marca pendiente."""

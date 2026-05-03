@@ -593,4 +593,4 @@ class TestAutoPendienteAPI:
         resp = _compra(client, pid, "AAPL", 150, 1000)
         assert resp.status_code == 201
         data = resp.get_json()
-        assert data["estado"] == "confirmada"
+        assert data["estado"] == "pendiente"

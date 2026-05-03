@@ -65,6 +65,23 @@ def crear_portafolio(user_id: int, nombre: str, descripcion: str = None, moneda:
 
     nombre = nombre.strip()
 
+
+    # Validar contra capital global
+    cap = _dec(capital_inicial)
+    if cap > 0:
+        from ..models.configuracion import ConfiguracionUsuario
+        config = ConfiguracionUsuario.query.filter_by(user_id=user_id).first()
+        if config and _dec(config.capital_global) > 0:
+            total_asignado = sum(
+                _dec(p.capital_inicial)
+                for p in Portafolio.query.filter_by(user_id=user_id).all()
+            )
+            disponible = _dec(config.capital_global) - total_asignado
+            if cap > disponible:
+                raise ValueError(
+                    f"Capital excede el disponible global (${float(disponible):,.2f})."
+                )
+
     portafolio = Portafolio(
         user_id=user_id,
         nombre=nombre,
@@ -135,6 +152,21 @@ def actualizar_portafolio(
                 f"(${float(valor_invertido):,.2f})"
             )
         portafolio.capital_inicial = nuevo_capital
+        # Validar que no exceda capital global disponible
+        from ..models.configuracion import ConfiguracionUsuario
+        config = ConfiguracionUsuario.query.filter_by(user_id=user_id).first()
+        if config and _dec(config.capital_global) > 0:
+            otros = sum(
+                _dec(p.capital_inicial)
+                for p in Portafolio.query.filter_by(user_id=user_id).all()
+                if p.id != portafolio_id
+            )
+            max_permitido = _dec(config.capital_global) - otros
+            if nuevo_capital > max_permitido:
+                raise ValueError(
+                    f"Capital excede el disponible global (${float(max_permitido):,.2f})."
+                )
+
 
     try:
         db.session.commit()
@@ -209,6 +241,8 @@ def vista_consolidada(user_id: int) -> dict:
             "moneda": p.moneda,
             "valor_total": float(valor_p),
             "costo_total": float(costo_p),
+            "capital_inicial": float(_dec(p.capital_inicial)),
+            "capital_disponible": float(_dec(p.capital_inicial) - costo_p),
             "pnl_bruto": float(pnl_p),
             "pnl_neto": float(neto["pnl_neto"]),
             "isr_estimado": float(neto["isr"]),
@@ -216,11 +250,22 @@ def vista_consolidada(user_id: int) -> dict:
 
     neto_total = _calcular_pnl_neto(pnl_bruto_total)
 
+    # Capital global
+    from ..models.configuracion import ConfiguracionUsuario
+    config = ConfiguracionUsuario.query.filter_by(user_id=user_id).first()
+    capital_global = float(_dec(config.capital_global)) if config else 0
+    total_asignado = sum(float(_dec(p.capital_inicial)) for p in portafolios)
+    capital_no_asignado = capital_global - total_asignado
+
+
     return {
         "valor_total": float(valor_total),
         "pnl_bruto": float(pnl_bruto_total),
         "pnl_neto": float(neto_total["pnl_neto"]),
         "isr_estimado": float(neto_total["isr"]),
+        "capital_global": capital_global,
+        "capital_no_asignado": capital_no_asignado,
+        "moneda_base": config.moneda_base if config else "MXN",
         "portafolios": resumen_portafolios,
     }
 
@@ -275,11 +320,15 @@ def registrar_transaccion(
 
     ganancia_perdida = None
 
-    # Auto-pending: si capital insuficiente para compra, marcar como pendiente
+    # Auto-pending: sin capital o capital insuficiente -> pendiente
     if tipo == "compra":
         portafolio = _get_portafolio(portafolio_id, user_id)
         cap_inicial = _dec(portafolio.capital_inicial)
-        if cap_inicial > 0:
+        if cap_inicial <= 0:
+            estado = "pendiente"
+            notas_prefix = "Marcada como pendiente: portafolio sin capital asignado"
+            notas = f"{notas_prefix}. {notas}" if notas else notas_prefix
+        else:
             posiciones_all = portafolio.posiciones.all()
             invertido = sum(
                 _dec(p.costo_total) for p in posiciones_all if _dec(p.cantidad) > 0
@@ -289,10 +338,7 @@ def registrar_transaccion(
             if costo_tx > disponible:
                 estado = "pendiente"
                 notas_prefix = "Marcada como pendiente: capital insuficiente"
-                if notas:
-                    notas = f"{notas_prefix}. {notas}"
-                else:
-                    notas = notas_prefix
+                notas = f"{notas_prefix}. {notas}" if notas else notas_prefix
 
     if tipo == "compra":
         posicion, ganancia_perdida = _procesar_compra(
@@ -457,6 +503,27 @@ def confirmar_transaccion(
         raise ValueError(
             "Solo se pueden confirmar transacciones con estado 'pendiente'."
         )
+
+
+    # Validar capital disponible para compras
+    if transaccion.tipo == "compra":
+        portafolio = _get_portafolio(portafolio_id, user_id)
+        cap_inicial = _dec(portafolio.capital_inicial)
+        if cap_inicial <= 0:
+            raise ValueError(
+                "No se puede confirmar: el portafolio no tiene capital asignado."
+            )
+        posiciones_all = portafolio.posiciones.all()
+        invertido = sum(
+            _dec(p.costo_total) for p in posiciones_all if _dec(p.cantidad) > 0
+        )
+        # El costo de esta tx ya está en la posición (diseño optimista),
+        # así que solo verificamos que el total no exceda el capital
+        if invertido > cap_inicial:
+            raise ValueError(
+                f"Capital insuficiente. Invertido: ${float(invertido):,.2f}, "
+                f"Capital: ${float(cap_inicial):,.2f}."
+            )
 
     transaccion.estado = "confirmada"
     db.session.commit()

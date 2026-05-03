@@ -370,6 +370,14 @@ export default function TransactionForm({
         )}
 
         {/* Capital banner — always show when capitalTotal > 0 */}
+        {/* Warning: portafolio sin capital */}
+        {capitalTotal <= 0 && !esDividendo && (
+          <div className="mb-4 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30
+                          text-sm text-yellow-400 flex items-start gap-2" role="alert">
+            <span className="shrink-0">⚠</span>
+            <span>Este portafolio no tiene capital asignado — la transacción quedará como <strong>pendiente</strong>.</span>
+          </div>
+        )}
         {capitalTotal > 0 && (
           <div className="mb-4 px-3 py-2 rounded-lg bg-bloomberg-panel border border-white/5
                           flex items-center gap-3 text-xs">

@@ -13,3 +13,4 @@ from .widget import WidgetConfig  # noqa: F401
 from .cache import PrecioCache, InpcCache, TipoCambioCache, CicloCache  # noqa: F401
 from .universo import UniversoTicker  # noqa: F401
 from .simulacion import Simulacion, SimulacionActivo  # noqa: F401
+from .configuracion import ConfiguracionUsuario  # noqa: F401

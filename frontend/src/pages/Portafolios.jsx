@@ -148,6 +148,14 @@ export default function Portafolios() {
       setErrorLocal('El nombre del portafolio es requerido.');
       return;
     }
+    const capSolicitado = parseFloat(formCapitalInicial) || 0;
+    if (capSolicitado > 0 && consolidado?.capital_global > 0) {
+      const noAsignado = consolidado.capital_no_asignado ?? 0;
+      if (capSolicitado > noAsignado) {
+        setErrorLocal(`Capital excede el disponible global ($${noAsignado.toLocaleString()}).`);
+        return;
+      }
+    }
     setLoadingLocal(true);
     setErrorLocal(null);
     try {
@@ -183,6 +191,20 @@ export default function Portafolios() {
     if (!formNombre.trim()) {
       setErrorLocal('El nombre del portafolio es requerido.');
       return;
+    }
+    const nuevoCapital = parseFloat(formCapitalInicial) || 0;
+    if (nuevoCapital > 0 && consolidado?.capital_global > 0) {
+      const portActual = consolidado.portafolios?.find(p => p.id === modalEditar.id);
+      const capActual = portActual?.capital_inicial || 0;
+      const maxPermitido = capActual + (consolidado.capital_no_asignado ?? 0);
+      if (nuevoCapital > maxPermitido) {
+        setErrorLocal(`Capital excede el máximo permitido ($${maxPermitido.toLocaleString()}).`);
+        return;
+      }
+      if (portActual && nuevoCapital < portActual.costo_total) {
+        setErrorLocal(`Capital no puede ser menor al invertido ($${portActual.costo_total.toLocaleString()}).`);
+        return;
+      }
     }
     setLoadingLocal(true);
     setErrorLocal(null);

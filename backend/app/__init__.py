@@ -60,11 +60,13 @@ def create_app(config_name=None):
     app.register_blueprint(optimizador_bp)
     from .api.simulaciones import simulaciones_bp
     app.register_blueprint(simulaciones_bp)
+    from .api.configuracion import configuracion_bp
+    app.register_blueprint(configuracion_bp)
 
     # ── Crear tablas automáticamente (Req 11.4) ──────────────────
     with app.app_context():
         # Importar modelos para que SQLAlchemy los registre
-        from .models import portafolio, alerta, noticia, widget, cache, universo, simulacion  # noqa: F401
+        from .models import portafolio, alerta, noticia, widget, cache, universo, simulacion, configuracion  # noqa: F401
         db.create_all()
 
     # ── WebSocket event handlers ────────────────────────────────
