@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Plot from 'react-plotly.js';
 import PositionTable from './PositionTable';
+import PortfolioCharts from './PortfolioCharts';
 import TransactionHistory from './TransactionHistory';
 import TickerQuickSearch from './TickerQuickSearch';
 import Spinner from '../common/Spinner';
@@ -316,7 +317,10 @@ export default function PortfolioDetail({
               hidden={tabActiva !== 'posiciones'}
             >
               {tabActiva === 'posiciones' && (
-                <PositionTable posiciones={posiciones} preciosEnVivo={preciosEnVivo} onEditarPosicion={onEditarPosicion} />
+                <>
+                  <PositionTable posiciones={posiciones} preciosEnVivo={preciosEnVivo} onEditarPosicion={onEditarPosicion} />
+                  <PortfolioCharts portafolioId={portafolio.id} posiciones={posiciones} moneda={portafolio.moneda} />
+                </>
               )}
             </div>
 

@@ -434,3 +434,28 @@ def seed_demo():
         "id": pid,
     }), 201
 
+
+
+@portafolios_bp.route("/<int:portafolio_id>/proyeccion", methods=["GET"])
+def proyeccion_portafolio(portafolio_id: int):
+    """
+    Proyección Monte Carlo del valor del portafolio.
+
+    Query params:
+        horizonte: 6m | 1y (default) | 2y | 5y
+        n_sims: número de simulaciones (default 500)
+
+    Returns:
+        fechas, percentiles p10/p50/p90, valor_actual,
+        rendimiento_anual, volatilidad_anual
+    """
+    horizonte = request.args.get("horizonte", "1y")
+    n_sims = min(int(request.args.get("n_sims", 500)), 2000)
+
+    try:
+        resultado = svc.proyeccion_monte_carlo(portafolio_id, _USER_ID, horizonte, n_sims)
+    except ValueError as e:
+        return _error(str(e), 400)
+    except Exception as e:
+        return _error(f"Error al calcular proyección: {str(e)}", 500)
+    return jsonify(resultado), 200

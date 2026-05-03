@@ -1062,3 +1062,117 @@ def _transaccion_to_dict(transaccion: Transaccion) -> dict:
         "updated_at": transaccion.updated_at.isoformat() if transaccion.updated_at else None,
         "created_at": transaccion.created_at.isoformat(),
     }
+
+
+# ── Proyección Monte Carlo ───────────────────────────────────────
+
+def proyeccion_monte_carlo(
+    portafolio_id: int, user_id: int, horizonte: str = "1y", n_sims: int = 500
+) -> dict:
+    """
+    Proyecta el valor futuro del portafolio usando simulación Monte Carlo.
+
+    Algoritmo:
+    1. Obtener posiciones actuales y sus pesos por valor de mercado.
+    2. Descargar rendimientos diarios históricos (1y) de cada ticker.
+    3. Calcular rendimiento y volatilidad del portafolio ponderado.
+    4. Simular n_sims trayectorias con GBM (Geometric Brownian Motion).
+    5. Devolver percentiles p10, p50, p90 por fecha.
+    """
+    import numpy as np
+
+    portafolio = _get_portafolio(portafolio_id, user_id)
+    posiciones = portafolio.posiciones.all()
+
+    # Filtrar posiciones con cantidad > 0 y precio > 0
+    activas = []
+    for pos in posiciones:
+        cant = float(pos.cantidad or 0)
+        precio = float(pos.precio_actual or 0)
+        if cant > 0 and precio > 0:
+            activas.append({"ticker": pos.ticker, "valor": cant * precio})
+
+    if len(activas) < 1:
+        raise ValueError("Se requiere al menos 1 posición activa con precio.")
+
+    valor_actual = sum(p["valor"] for p in activas)
+    pesos = {p["ticker"]: p["valor"] / valor_actual for p in activas}
+
+    # Descargar rendimientos diarios (1 año de historia)
+    rendimientos_por_ticker = {}
+    for ticker in pesos:
+        try:
+            df = yfinance_service.obtener_datos_historicos(ticker, periodo="1y", intervalo="1d")
+            closes = df["Close"].dropna()
+            if len(closes) > 10:
+                rets = np.log(closes / closes.shift(1)).dropna().values
+                rendimientos_por_ticker[ticker] = rets
+        except Exception as e:
+            logger.warning("Proyección: no se pudo obtener datos de %s: %s", ticker, e)
+
+    if not rendimientos_por_ticker:
+        raise ValueError("No se pudieron obtener datos históricos para la proyección.")
+
+    # Calcular rendimiento diario ponderado del portafolio
+    # Alinear longitudes
+    min_len = min(len(r) for r in rendimientos_por_ticker.values())
+    port_returns = np.zeros(min_len)
+    peso_total = 0
+    for ticker, rets in rendimientos_por_ticker.items():
+        w = pesos.get(ticker, 0)
+        port_returns += w * rets[-min_len:]
+        peso_total += w
+
+    if peso_total > 0:
+        port_returns /= peso_total  # Normalizar si no todos los tickers tienen datos
+
+    mu_diario = np.mean(port_returns)
+    sigma_diario = np.std(port_returns)
+
+    # Horizonte en días de trading (~252/año)
+    horizontes = {"6m": 126, "1y": 252, "2y": 504, "5y": 1260}
+    dias_trading = horizontes.get(horizonte, 252)
+
+    # Simulación GBM
+    dt = 1.0
+    np.random.seed(42)
+    sims = np.zeros((n_sims, dias_trading + 1))
+    sims[:, 0] = valor_actual
+
+    z = np.random.standard_normal((n_sims, dias_trading))
+    for t in range(dias_trading):
+        sims[:, t + 1] = sims[:, t] * np.exp(
+            (mu_diario - 0.5 * sigma_diario**2) * dt + sigma_diario * np.sqrt(dt) * z[:, t]
+        )
+
+    # Percentiles
+    p10 = np.percentile(sims, 10, axis=0).tolist()
+    p50 = np.percentile(sims, 50, axis=0).tolist()
+    p90 = np.percentile(sims, 90, axis=0).tolist()
+
+    # Generar fechas (días calendario, saltando fines de semana)
+    fechas = []
+    fecha = date.today()
+    count = 0
+    while count <= dias_trading:
+        if fecha.weekday() < 5:  # Lun-Vie
+            fechas.append(fecha.isoformat())
+            count += 1
+        fecha += timedelta(days=1)
+
+    # Métricas anualizadas
+    mu_anual = float(mu_diario * 252)
+    sigma_anual = float(sigma_diario * np.sqrt(252))
+
+    return {
+        "portafolio_id": portafolio_id,
+        "horizonte": horizonte,
+        "valor_actual": round(valor_actual, 2),
+        "rendimiento_anual": round(mu_anual * 100, 2),
+        "volatilidad_anual": round(sigma_anual * 100, 2),
+        "fechas": fechas,
+        "p10": [round(v, 2) for v in p10],
+        "p50": [round(v, 2) for v in p50],
+        "p90": [round(v, 2) for v in p90],
+        "moneda": portafolio.moneda,
+    }
