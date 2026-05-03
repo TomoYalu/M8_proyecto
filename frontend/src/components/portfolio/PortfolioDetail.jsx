@@ -15,6 +15,7 @@ import Spinner from '../common/Spinner';
 import OptimizerResults from '../optimizer/OptimizerResults';
 import useOptimizer from '../../hooks/useOptimizer';
 import { formatMoneda, formatPorcentaje } from '../../utils/formatters';
+import generarPDFPortafolio from '../../utils/generarPDF';
 import { BLOOMBERG_ACCENT } from '../../utils/colors';
 
 /**
@@ -66,6 +67,7 @@ export default function PortfolioDetail({
   const [analisisExecuted, setAnalisisExecuted] = useState(false);
   const [perfilAnalisis, setPerfilAnalisis] = useState(null);
   const [aplicando, setAplicando] = useState(false);
+  const [generandoPDF, setGenerandoPDF] = useState(false);
   const [aplicadoMsg, setAplicadoMsg] = useState(null);
   const {
     ejecutarOptimizacion,
@@ -215,6 +217,33 @@ export default function PortfolioDetail({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {/* Exportar PDF */}
+          <button
+            onClick={async () => {
+              setGenerandoPDF(true);
+              try {
+                await generarPDFPortafolio({ portafolio, posiciones, transacciones });
+              } catch (e) { console.error('Error generando PDF:', e); }
+              finally { setGenerandoPDF(false); }
+            }}
+            disabled={generandoPDF}
+            className="p-1.5 rounded-lg text-bloomberg-text-muted
+                       hover:text-bloomberg-accent hover:bg-white/5 transition-colors
+                       disabled:opacity-50"
+            aria-label="Exportar portafolio a PDF"
+            title="Exportar PDF"
+          >
+            {generandoPDF ? (
+              <div className="w-4 h-4 border-2 rounded-full border-bloomberg-accent border-t-transparent animate-spin" />
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none"
+                viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            )}
+          </button>
+
           {/* Editar */}
           <button
             onClick={() => onEditar(portafolio)}
