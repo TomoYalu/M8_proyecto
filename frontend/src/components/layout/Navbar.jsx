@@ -94,7 +94,7 @@ export default function Navbar() {
     >
       {/* Izquierda: título + contexto */}
       <div className="flex items-center gap-4">
-        <h1 className="text-2xl font-semibold tracking-wide text-bloomberg-text">
+        <h1 className="text-4xl font-semibold tracking-wide text-bloomberg-text">
           {titulo}
         </h1>
         <span className="hidden sm:inline text-sm text-bloomberg-text/60 font-light tracking-[0.2em] uppercase">
