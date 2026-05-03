@@ -97,6 +97,7 @@ class Transaccion(db.Model):
     moneda = db.Column(db.String(3), nullable=False, default="USD")
     ganancia_perdida = db.Column(db.Numeric(18, 6))
     notas = db.Column(db.Text)
+    estado = db.Column(db.String(20), nullable=False, default="confirmada")
     created_at = db.Column(
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )

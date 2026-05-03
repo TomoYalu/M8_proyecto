@@ -155,6 +155,36 @@ def obtener_posiciones(portafolio_id: int):
     return jsonify(resultado), 200
 
 
+@portafolios_bp.route("/<int:portafolio_id>/posiciones/<int:posicion_id>", methods=["PUT"])
+def actualizar_posicion(portafolio_id: int, posicion_id: int):
+    """Actualiza la cantidad de una posición directamente."""
+    data = request.get_json(silent=True) or {}
+    cantidad_deseada = data.get("cantidad_deseada")
+
+    if cantidad_deseada is None:
+        return _error("El campo 'cantidad_deseada' es requerido.", 400)
+
+    try:
+        cantidad_deseada = float(cantidad_deseada)
+    except (ValueError, TypeError):
+        return _error("El campo 'cantidad_deseada' debe ser un número válido.", 400)
+
+    if cantidad_deseada < 0:
+        return _error("La cantidad deseada no puede ser negativa.", 400)
+
+    try:
+        resultado = svc.actualizar_posicion(
+            portafolio_id, _USER_ID, posicion_id, cantidad_deseada
+        )
+    except ValueError as e:
+        msg = str(e)
+        if "No se encontró" in msg:
+            return _error(msg, 404)
+        return _error(msg, 400)
+
+    return jsonify(resultado), 200
+
+
 # ── Transacciones ────────────────────────────────────────────────
 
 @portafolios_bp.route("/<int:portafolio_id>/transacciones", methods=["GET"])
@@ -215,6 +245,46 @@ def registrar_transaccion(portafolio_id: int):
         return _error(msg, 400)
 
     return jsonify(resultado), 201
+
+
+# ── Confirmar / Cancelar transacciones pendientes ────────────────
+
+@portafolios_bp.route(
+    "/<int:portafolio_id>/transacciones/<int:transaccion_id>/confirmar",
+    methods=["POST"],
+)
+def confirmar_transaccion(portafolio_id: int, transaccion_id: int):
+    """Confirma una transacción pendiente."""
+    try:
+        resultado = svc.confirmar_transaccion(
+            portafolio_id, _USER_ID, transaccion_id
+        )
+    except ValueError as e:
+        msg = str(e)
+        if "No se encontró" in msg:
+            return _error(msg, 404)
+        return _error(msg, 400)
+
+    return jsonify(resultado), 200
+
+
+@portafolios_bp.route(
+    "/<int:portafolio_id>/transacciones/<int:transaccion_id>/cancelar",
+    methods=["DELETE"],
+)
+def cancelar_transaccion(portafolio_id: int, transaccion_id: int):
+    """Cancela una transacción pendiente y revierte los cambios."""
+    try:
+        resultado = svc.cancelar_transaccion(
+            portafolio_id, _USER_ID, transaccion_id
+        )
+    except ValueError as e:
+        msg = str(e)
+        if "No se encontró" in msg:
+            return _error(msg, 404)
+        return _error(msg, 400)
+
+    return jsonify(resultado), 200
 
 
 # ── Refresco de precios bajo demanda ─────────────────────────────

@@ -8,6 +8,7 @@ import ConsolidatedView from '../components/portfolio/ConsolidatedView';
 import PortfolioSidebar from '../components/portfolio/PortfolioSidebar';
 import PortfolioDetail from '../components/portfolio/PortfolioDetail';
 import TransactionForm from '../components/portfolio/TransactionForm';
+import PositionEditor from '../components/portfolio/PositionEditor';
 import FavoritosPanel from '../components/portfolio/FavoritosPanel';
 import SimulatorPanel from '../components/portfolio/SimulatorPanel';
 import OptimizerResults from '../components/optimizer/OptimizerResults';
@@ -75,6 +76,10 @@ export default function Portafolios() {
   const [tickerPrellenado, setTickerPrellenado] = useState(null);
   const [cargaInicial, setCargaInicial] = useState(true);
   const [consolidadoColapsado, setConsolidadoColapsado] = useState(false);
+  const [posicionEditando, setPosicionEditando] = useState(null);
+  const [modalPosicionEditor, setModalPosicionEditor] = useState(false);
+  const [errorPosicionEditor, setErrorPosicionEditor] = useState(null);
+  const [loadingPosicionEditor, setLoadingPosicionEditor] = useState(false);
 
   // ─── Estado de vista y optimizador ────────────────────────────
   const [vistaActiva, setVistaActiva] = useState('portafolios'); // 'portafolios' | 'simulador'
@@ -277,13 +282,54 @@ export default function Portafolios() {
     limpiarResultados();
   }, [limpiarResultados]);
 
-  // ─── Handler: Editar posición desde tabla (abre TransactionForm pre-llenado) ──
+  // ─── Handler: Editar posición desde tabla (abre PositionEditor) ──
   const handleEditarPosicion = useCallback((posicion) => {
-    if (!posicion?.ticker) return;
-    setTickerPrellenado(posicion.ticker);
-    setModalTransaccion(true);
-    setErrorLocal(null);
+    if (!posicion?.id) return;
+    setPosicionEditando(posicion);
+    setModalPosicionEditor(true);
+    setErrorPosicionEditor(null);
   }, []);
+
+  const handleGuardarPosicion = async (posicionId, cantidadDeseada) => {
+    if (!portafolioActivo) return;
+    setLoadingPosicionEditor(true);
+    setErrorPosicionEditor(null);
+    try {
+      const res = await fetch(
+        `/api/portafolios/${portafolioActivo}/posiciones/${posicionId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cantidad_deseada: cantidadDeseada }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Error al actualizar posición');
+      }
+      await fetchPosiciones(portafolioActivo);
+      await fetchTransacciones(portafolioActivo);
+      await fetchConsolidado();
+      setModalPosicionEditor(false);
+      setPosicionEditando(null);
+    } catch (err) {
+      setErrorPosicionEditor(err.message);
+    } finally {
+      setLoadingPosicionEditor(false);
+    }
+  };
+
+  // ─── Handler: Transacción pendiente confirmada/cancelada ──────
+  const handleTransaccionActualizada = useCallback(async () => {
+    if (!portafolioActivo) return;
+    try {
+      await fetchPosiciones(portafolioActivo);
+      await fetchTransacciones(portafolioActivo);
+      await fetchConsolidado();
+    } catch {
+      // Error ya manejado por el hook
+    }
+  }, [portafolioActivo, fetchPosiciones, fetchTransacciones, fetchConsolidado]);
 
   const transaccionesActivas = portafolioActivo ? transacciones[portafolioActivo] : null;
   const portafolioSeleccionado = portafolios.find((p) => p.id === portafolioActivo);
@@ -434,6 +480,7 @@ export default function Portafolios() {
                 }}
                 onOptimizar={handleOptimizarPortafolio}
                 onEditarPosicion={handleEditarPosicion}
+                onTransaccionActualizada={handleTransaccionActualizada}
               />
             ) : (
               <div
@@ -720,6 +767,20 @@ export default function Portafolios() {
         valorInvertido={
           posicionesActivas.reduce((sum, p) => sum + (p.costo_total || 0), 0)
         }
+      />
+
+      {/* Modal: Editar posición */}
+      <PositionEditor
+        abierto={modalPosicionEditor}
+        posicion={posicionEditando}
+        onCerrar={() => {
+          setModalPosicionEditor(false);
+          setPosicionEditando(null);
+          setErrorPosicionEditor(null);
+        }}
+        onGuardar={handleGuardarPosicion}
+        loading={loadingPosicionEditor}
+        error={errorPosicionEditor}
       />
     </div>
   );

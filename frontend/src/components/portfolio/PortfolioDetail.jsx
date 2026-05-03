@@ -27,6 +27,7 @@ import { BLOOMBERG_ACCENT } from '../../utils/colors';
  * @param {function} [props.onAgregarTicker] - Callback cuando el usuario quiere agregar un ticker desde búsqueda rápida
  * @param {function} [props.onOptimizar] - Callback para optimizar el portafolio con Markowitz
  * @param {function} [props.onEditarPosicion] - Callback para editar una posición (abre TransactionForm pre-llenado)
+ * @param {function} [props.onTransaccionActualizada] - Callback cuando una transacción pendiente se confirma/cancela
  *
  * Requisitos cubiertos: 1.1–1.5, 2.6, 3.1–3.7, 9.1–9.5, 10.1–10.4, 12.1, 12.2, 12.4, 12.5, 12.7, plan-v1.1 B2
  */
@@ -43,6 +44,7 @@ export default function PortfolioDetail({
   onAgregarTicker,
   onOptimizar,
   onEditarPosicion,
+  onTransaccionActualizada,
 }) {
   const [tabActiva, setTabActiva] = useState('posiciones');
 
@@ -296,6 +298,8 @@ export default function PortfolioDetail({
                   datos={transacciones}
                   onCambiarPagina={onCambiarPagina}
                   loading={loading}
+                  portafolioId={portafolio.id}
+                  onTransaccionActualizada={onTransaccionActualizada}
                 />
               )}
             </div>

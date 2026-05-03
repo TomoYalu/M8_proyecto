@@ -227,6 +227,7 @@ def registrar_transaccion(
     comision=0,
     moneda: str = "USD",
     notas: str = None,
+    estado: str = "confirmada",
 ) -> dict:
     """
     Registra una transacción de compra, venta o dividendo.
@@ -289,6 +290,7 @@ def registrar_transaccion(
         moneda=moneda,
         ganancia_perdida=ganancia_perdida,
         notas=notas,
+        estado=estado,
     )
     db.session.add(transaccion)
     db.session.commit()
@@ -328,6 +330,162 @@ def obtener_posiciones(portafolio_id: int, user_id: int) -> list[dict]:
     """
     portafolio = _get_portafolio(portafolio_id, user_id)
     return _posiciones_con_pnl(portafolio)
+
+
+def actualizar_posicion(
+    portafolio_id: int, user_id: int, posicion_id: int, cantidad_deseada
+) -> dict:
+    """
+    Actualiza la cantidad de una posición creando una transacción pendiente.
+
+    - Si cantidad_deseada > actual → crea transacción de compra con estado='pendiente'
+    - Si cantidad_deseada < actual → crea transacción de venta con estado='pendiente'
+    - Si cantidad_deseada == actual → no-op, retorna posición sin cambios
+
+    La posición se actualiza inmediatamente; el estado 'pendiente' es para
+    seguimiento del usuario.
+
+    Raises:
+        ValueError: si la posición no existe o no pertenece al portafolio.
+    """
+    portafolio = _get_portafolio(portafolio_id, user_id)
+    posicion = Posicion.query.filter_by(
+        id=posicion_id, portafolio_id=portafolio_id
+    ).first()
+
+    if posicion is None:
+        raise ValueError(
+            f"No se encontró la posición con id {posicion_id} en este portafolio."
+        )
+
+    cantidad_deseada = _dec(cantidad_deseada)
+    cantidad_actual = _dec(posicion.cantidad)
+    diff = cantidad_deseada - cantidad_actual
+
+    if diff == 0:
+        # No-op: return current position
+        posiciones = _posiciones_con_pnl(portafolio)
+        for p in posiciones:
+            if p["id"] == posicion_id:
+                return p
+        return {}
+
+    precio_actual = _dec(posicion.precio_actual) if posicion.precio_actual else _dec(posicion.precio_promedio)
+    if precio_actual <= 0:
+        precio_actual = _dec(posicion.precio_promedio)
+
+    if diff > 0:
+        # Compra
+        tipo = "compra"
+        cantidad_tx = diff
+    else:
+        # Venta
+        tipo = "venta"
+        cantidad_tx = abs(diff)
+
+    tx = registrar_transaccion(
+        portafolio_id=portafolio_id,
+        user_id=user_id,
+        ticker=posicion.ticker,
+        tipo=tipo,
+        fecha=date.today(),
+        precio_unitario=precio_actual,
+        cantidad=cantidad_tx,
+        comision=0,
+        moneda=posicion.moneda,
+        notas=f"Ajuste de posición: {float(cantidad_actual)} → {float(cantidad_deseada)}",
+        estado="pendiente",
+    )
+
+    posiciones = _posiciones_con_pnl(portafolio)
+    for p in posiciones:
+        if p["id"] == posicion_id:
+            return p
+    return {}
+
+
+def confirmar_transaccion(
+    portafolio_id: int, user_id: int, transaccion_id: int
+) -> dict:
+    """
+    Confirma una transacción pendiente cambiando su estado a 'confirmada'.
+
+    Raises:
+        ValueError: si la transacción no existe o no está pendiente.
+    """
+    _get_portafolio(portafolio_id, user_id)
+    transaccion = Transaccion.query.filter_by(
+        id=transaccion_id, portafolio_id=portafolio_id
+    ).first()
+
+    if transaccion is None:
+        raise ValueError(
+            f"No se encontró la transacción con id {transaccion_id} en este portafolio."
+        )
+
+    if transaccion.estado != "pendiente":
+        raise ValueError(
+            "Solo se pueden confirmar transacciones con estado 'pendiente'."
+        )
+
+    transaccion.estado = "confirmada"
+    db.session.commit()
+    return _transaccion_to_dict(transaccion)
+
+
+def cancelar_transaccion(
+    portafolio_id: int, user_id: int, transaccion_id: int
+) -> dict:
+    """
+    Cancela una transacción pendiente, revierte los cambios en la posición
+    y elimina la transacción.
+
+    - Si la transacción era compra → resta la cantidad de la posición
+    - Si la transacción era venta → suma la cantidad de vuelta a la posición
+
+    Raises:
+        ValueError: si la transacción no existe o no está pendiente.
+    """
+    _get_portafolio(portafolio_id, user_id)
+    transaccion = Transaccion.query.filter_by(
+        id=transaccion_id, portafolio_id=portafolio_id
+    ).first()
+
+    if transaccion is None:
+        raise ValueError(
+            f"No se encontró la transacción con id {transaccion_id} en este portafolio."
+        )
+
+    if transaccion.estado != "pendiente":
+        raise ValueError(
+            "Solo se pueden cancelar transacciones con estado 'pendiente'."
+        )
+
+    # Revertir cambios en la posición
+    posicion = Posicion.query.filter_by(
+        portafolio_id=portafolio_id, ticker=transaccion.ticker
+    ).first()
+
+    if posicion is not None:
+        cantidad_tx = _dec(transaccion.cantidad)
+        precio_tx = _dec(transaccion.precio_unitario)
+
+        if transaccion.tipo == "compra":
+            # Revertir compra: restar cantidad y ajustar costo
+            nueva_cantidad = _dec(posicion.cantidad) - cantidad_tx
+            if nueva_cantidad < 0:
+                nueva_cantidad = Decimal("0")
+            posicion.cantidad = nueva_cantidad
+            posicion.costo_total = _dec(posicion.precio_promedio) * nueva_cantidad
+        elif transaccion.tipo == "venta":
+            # Revertir venta: sumar cantidad de vuelta
+            nueva_cantidad = _dec(posicion.cantidad) + cantidad_tx
+            posicion.cantidad = nueva_cantidad
+            posicion.costo_total = _dec(posicion.precio_promedio) * nueva_cantidad
+
+    db.session.delete(transaccion)
+    db.session.commit()
+    return {"mensaje": "Transacción cancelada y cambios revertidos."}
 
 
 # ── Refresco de precios bajo demanda ─────────────────────────────
@@ -747,5 +905,6 @@ def _transaccion_to_dict(transaccion: Transaccion) -> dict:
             else None
         ),
         "notas": transaccion.notas,
+        "estado": transaccion.estado,
         "created_at": transaccion.created_at.isoformat(),
     }

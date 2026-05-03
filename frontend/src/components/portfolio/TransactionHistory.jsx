@@ -1,16 +1,20 @@
+import { useState } from 'react';
 import { formatMoneda, formatFecha, formatNumero } from '../../utils/formatters';
 import Badge from '../common/Badge';
 
 /**
  * Historial paginado de transacciones (50 por página).
  *
- * Columnas: Fecha, Ticker, Tipo, Precio, Cantidad, Comisión, Ganancia/Pérdida.
+ * Columnas: Fecha, Ticker, Tipo, Precio, Cantidad, Comisión, Ganancia/Pérdida, Estado.
  * Badges de tipo: compra=azul, venta=rojo, dividendo=verde.
+ * Transacciones pendientes muestran badge amarillo y botones Confirmar/Cancelar.
  *
  * @param {object} props
  * @param {object} props.datos - { items, total, pagina, paginas }
  * @param {function} props.onCambiarPagina - Callback con número de página
  * @param {boolean} [props.loading] - Estado de carga
+ * @param {number} [props.portafolioId] - ID del portafolio (para confirmar/cancelar)
+ * @param {function} [props.onTransaccionActualizada] - Callback tras confirmar/cancelar
  *
  * Requisitos cubiertos: 2.6, 12.1, 12.2, 12.7
  */
@@ -18,11 +22,55 @@ export default function TransactionHistory({
   datos,
   onCambiarPagina,
   loading = false,
+  portafolioId,
+  onTransaccionActualizada,
 }) {
   const items = datos?.items ?? [];
   const pagina = datos?.pagina ?? 1;
   const paginas = datos?.paginas ?? 1;
   const total = datos?.total ?? 0;
+
+  const [accionando, setAccionando] = useState(null);
+
+  const handleConfirmar = async (txId) => {
+    if (!portafolioId) return;
+    setAccionando(txId);
+    try {
+      const res = await fetch(
+        `/api/portafolios/${portafolioId}/transacciones/${txId}/confirmar`,
+        { method: 'POST' }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        console.error('Error al confirmar:', data.error);
+      }
+      onTransaccionActualizada?.();
+    } catch (err) {
+      console.error('Error al confirmar transacción:', err);
+    } finally {
+      setAccionando(null);
+    }
+  };
+
+  const handleCancelar = async (txId) => {
+    if (!portafolioId) return;
+    setAccionando(txId);
+    try {
+      const res = await fetch(
+        `/api/portafolios/${portafolioId}/transacciones/${txId}/cancelar`,
+        { method: 'DELETE' }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        console.error('Error al cancelar:', data.error);
+      }
+      onTransaccionActualizada?.();
+    } catch (err) {
+      console.error('Error al cancelar transacción:', err);
+    } finally {
+      setAccionando(null);
+    }
+  };
 
   const tipoBadge = {
     compra: { variante: 'azul', texto: 'Compra' },
@@ -51,6 +99,10 @@ export default function TransactionHistory({
               <th className="text-right px-4 py-3 font-medium" scope="col">Cantidad</th>
               <th className="text-right px-4 py-3 font-medium" scope="col">Comisión</th>
               <th className="text-right px-4 py-3 font-medium" scope="col">Ganancia/Pérdida</th>
+              <th className="text-left px-4 py-3 font-medium" scope="col">Estado</th>
+              <th className="px-4 py-3 font-medium" scope="col">
+                <span className="sr-only">Acciones</span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
@@ -87,6 +139,41 @@ export default function TransactionHistory({
                     {tx.ganancia_perdida != null
                       ? formatMoneda(tx.ganancia_perdida, tx.moneda)
                       : '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    {tx.estado === 'pendiente' ? (
+                      <Badge texto="Pendiente" variante="amarillo" ariaLabel="Transacción pendiente de confirmación" />
+                    ) : (
+                      <span className="text-xs text-bloomberg-text-muted">Confirmada</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {tx.estado === 'pendiente' && portafolioId && (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmar(tx.id)}
+                          disabled={accionando === tx.id}
+                          className="px-2 py-1 text-[10px] rounded bg-bloomberg-green/15 text-bloomberg-green
+                                     border border-bloomberg-green/30 hover:bg-bloomberg-green/25
+                                     disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          aria-label={`Confirmar transacción ${tx.id}`}
+                        >
+                          Confirmar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCancelar(tx.id)}
+                          disabled={accionando === tx.id}
+                          className="px-2 py-1 text-[10px] rounded bg-bloomberg-red/15 text-bloomberg-red
+                                     border border-bloomberg-red/30 hover:bg-bloomberg-red/25
+                                     disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          aria-label={`Cancelar transacción ${tx.id}`}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               );
