@@ -6,6 +6,7 @@
  * Fecha de creación: 2026-05-02
  */
 import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import useStore from '../../store';
 import AlertBadge from '../alerts/AlertBadge';
 
@@ -85,6 +86,18 @@ export default function Navbar() {
   const logout = useStore((s) => s.logout);
 
   const [dropdownAbierto, setDropdownAbierto] = useState(false);
+  const { pathname } = useLocation();
+  const titulos = {
+    '/portafolios': 'Portafolios',
+    '/analisis': 'Análisis Técnico',
+    '/noticias': 'Noticias',
+    '/wizard': 'Portafolio Automático',
+    '/busqueda': 'Búsqueda',
+    '/alertas': 'Alertas',
+    '/fiscal': 'Módulo Fiscal',
+    '/dashboard': 'Dashboard',
+  };
+  const titulo = titulos[pathname] || 'Lakshmi Q2';
 
   return (
     <header
@@ -92,22 +105,10 @@ export default function Navbar() {
                  flex items-center justify-between px-6 shrink-0"
       role="banner"
     >
-      {/* Nombre de la app y contexto */}
-      <div className="flex items-center gap-4">
-        <span className="text-sm font-medium text-bloomberg-text">
-          Plataforma de Inversiones — México
-        </span>
-
-        {/* Selector de portafolio activo (placeholder) */}
-        <div
-          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg
-                     bg-white/5 border border-white/10 text-sm text-bloomberg-text-muted"
-          aria-label="Portafolio activo"
-        >
-          <span aria-hidden="true">💼</span>
-          <span>Sin portafolio seleccionado</span>
-        </div>
-      </div>
+      {/* Título de la pantalla */}
+      <h1 className="text-lg font-semibold text-bloomberg-text">
+        {titulo}
+      </h1>
 
       <div className="flex items-center gap-4">
         {/* Badge de favoritos */}
