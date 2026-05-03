@@ -6,7 +6,7 @@ import { formatMoneda } from '../../utils/formatters';
  * Vista consolidada con capital global editable, resumen de valor total,
  * P&L y desglose por portafolio con capital asignado/disponible.
  */
-export default function ConsolidatedView({ consolidado }) {
+export default function ConsolidatedView({ consolidado, onCapitalUpdated }) {
   const { capitalConfig, fetchCapitalConfig, actualizarCapitalGlobal } = useStore();
   const [editando, setEditando] = useState(false);
   const [inputCapital, setInputCapital] = useState('');
@@ -29,6 +29,7 @@ export default function ConsolidatedView({ consolidado }) {
     try {
       await actualizarCapitalGlobal(valor);
       setEditando(false);
+      if (onCapitalUpdated) onCapitalUpdated();
     } catch (err) { setError(err.message); }
     finally { setGuardando(false); }
   }, [inputCapital, actualizarCapitalGlobal]);
@@ -60,7 +61,7 @@ export default function ConsolidatedView({ consolidado }) {
                 <span className="text-bloomberg-text-muted text-sm">$</span>
                 <input
                   type="number"
-                  step="100"
+                  step="1"
                   min="0"
                   value={inputCapital}
                   onChange={(e) => setInputCapital(e.target.value)}

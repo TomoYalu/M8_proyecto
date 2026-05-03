@@ -320,25 +320,40 @@ def registrar_transaccion(
 
     ganancia_perdida = None
 
-    # Auto-pending: sin capital o capital insuficiente -> pendiente
+    # Auto-pending: verificar capital disponible (local o global)
     if tipo == "compra":
         portafolio = _get_portafolio(portafolio_id, user_id)
         cap_inicial = _dec(portafolio.capital_inicial)
-        if cap_inicial <= 0:
-            estado = "pendiente"
-            notas_prefix = "Marcada como pendiente: portafolio sin capital asignado"
-            notas = f"{notas_prefix}. {notas}" if notas else notas_prefix
-        else:
+        costo_tx = precio_unitario * cantidad
+
+        if cap_inicial > 0:
+            # Portafolio con límite local
             posiciones_all = portafolio.posiciones.all()
             invertido = sum(
                 _dec(p.costo_total) for p in posiciones_all if _dec(p.cantidad) > 0
             )
             disponible = cap_inicial - invertido
-            costo_tx = precio_unitario * cantidad
-            if costo_tx > disponible:
-                estado = "pendiente"
-                notas_prefix = "Marcada como pendiente: capital insuficiente"
-                notas = f"{notas_prefix}. {notas}" if notas else notas_prefix
+        else:
+            # Portafolio sin límite: usar capital global
+            from ..models.configuracion import ConfiguracionUsuario
+            config = ConfiguracionUsuario.query.filter_by(user_id=user_id).first()
+            capital_global = _dec(config.capital_global) if config else Decimal("0")
+            if capital_global <= 0:
+                disponible = Decimal("0")
+            else:
+                # Total invertido en TODOS los portafolios
+                todos_port = Portafolio.query.filter_by(user_id=user_id).all()
+                total_invertido = Decimal("0")
+                for p in todos_port:
+                    for pos in p.posiciones.all():
+                        if _dec(pos.cantidad) > 0:
+                            total_invertido += _dec(pos.costo_total)
+                disponible = capital_global - total_invertido
+
+        if costo_tx > disponible:
+            estado = "pendiente"
+            notas_prefix = "Marcada como pendiente: capital insuficiente"
+            notas = f"{notas_prefix}. {notas}" if notas else notas_prefix
 
     if tipo == "compra":
         posicion, ganancia_perdida = _procesar_compra(
@@ -505,25 +520,40 @@ def confirmar_transaccion(
         )
 
 
-    # Validar capital disponible para compras
+    # Validar capital disponible para compras (local o global)
     if transaccion.tipo == "compra":
         portafolio = _get_portafolio(portafolio_id, user_id)
         cap_inicial = _dec(portafolio.capital_inicial)
-        if cap_inicial <= 0:
-            raise ValueError(
-                "No se puede confirmar: el portafolio no tiene capital asignado."
-            )
         posiciones_all = portafolio.posiciones.all()
         invertido = sum(
             _dec(p.costo_total) for p in posiciones_all if _dec(p.cantidad) > 0
         )
-        # El costo de esta tx ya está en la posición (diseño optimista),
-        # así que solo verificamos que el total no exceda el capital
-        if invertido > cap_inicial:
-            raise ValueError(
-                f"Capital insuficiente. Invertido: ${float(invertido):,.2f}, "
-                f"Capital: ${float(cap_inicial):,.2f}."
-            )
+
+        if cap_inicial > 0:
+            # Límite local
+            if invertido > cap_inicial:
+                raise ValueError(
+                    f"Capital insuficiente. Invertido: ${float(invertido):,.2f}, "
+                    f"Capital: ${float(cap_inicial):,.2f}."
+                )
+        else:
+            # Sin límite local: verificar capital global
+            from ..models.configuracion import ConfiguracionUsuario
+            config = ConfiguracionUsuario.query.filter_by(user_id=user_id).first()
+            capital_global = _dec(config.capital_global) if config else Decimal("0")
+            if capital_global <= 0:
+                raise ValueError("No hay capital global configurado.")
+            todos_port = Portafolio.query.filter_by(user_id=user_id).all()
+            total_invertido = Decimal("0")
+            for p in todos_port:
+                for pos in p.posiciones.all():
+                    if _dec(pos.cantidad) > 0:
+                        total_invertido += _dec(pos.costo_total)
+            if total_invertido > capital_global:
+                raise ValueError(
+                    f"Capital global insuficiente. Invertido total: ${float(total_invertido):,.2f}, "
+                    f"Capital global: ${float(capital_global):,.2f}."
+                )
 
     transaccion.estado = "confirmada"
     db.session.commit()

@@ -120,15 +120,27 @@ export default function TransactionForm({
     }
   }, [abierto, tickerPrellenado, setTickerQuery]);
 
-  // ─── Reset allocation state when modal opens ──────────────────
+  // ─── Full reset when modal opens ────────────────────────────────
   useEffect(() => {
     if (abierto) {
+      setForm({
+        ticker: '',
+        fecha: ultimaFechaHabil(),
+        precio_unitario: '',
+        cantidad: '',
+        comision: '0',
+        moneda: 'MXN',
+        notas: '',
+      });
+      setTickerQuery('');
+      setPrecioEditadoManualmente(false);
+      setErroresValidacion({});
       setMontoInvertir('');
       setPorcentaje('');
       setCantidadManual(false);
       setEsDividendo(false);
     }
-  }, [abierto]);
+  }, [abierto, setTickerQuery, setPrecioEditadoManualmente]);
 
   // ─── Sync autocomplete selection → form state ─────────────────
   const prevTickerQueryRef = useRef(tickerQuery);
@@ -304,6 +316,12 @@ export default function TransactionForm({
     }
     if (form.comision !== '' && Number(form.comision) < 0) {
       errores.comision = 'La comisión no puede ser negativa.';
+    }
+    if (!esDividendo && precioNum > 0 && cantidadNum < 1) {
+      errores.cantidad = 'La cantidad debe ser al menos 1.';
+    }
+    if (!esDividendo && montoInvertir && precioNum > parseFloat(montoInvertir)) {
+      errores.cantidad = `El precio unitario (${formatMoneda(precioNum, form.moneda)}) excede el monto a invertir.`;
     }
 
     setErroresValidacion(errores);

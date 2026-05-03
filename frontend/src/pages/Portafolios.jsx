@@ -452,7 +452,7 @@ export default function Portafolios() {
             </button>
             {!consolidadoColapsado && (
               <div id="consolidado-panel">
-                <ConsolidatedView consolidado={consolidado} />
+                <ConsolidatedView consolidado={consolidado} onCapitalUpdated={fetchConsolidado} />
               </div>
             )}
           </div>
@@ -785,9 +785,15 @@ export default function Portafolios() {
         onSubmit={handleRegistrarTransaccion}
         loading={loadingLocal}
         error={errorLocal}
-        capitalTotal={portafolioSeleccionado?.capital_inicial || 0}
+        capitalTotal={
+          (portafolioSeleccionado?.capital_inicial || 0) > 0
+            ? portafolioSeleccionado.capital_inicial
+            : (consolidado?.capital_global || 0)
+        }
         valorInvertido={
-          posicionesActivas.reduce((sum, p) => sum + (p.costo_total || 0), 0)
+          (portafolioSeleccionado?.capital_inicial || 0) > 0
+            ? posicionesActivas.reduce((sum, p) => sum + (p.costo_total || 0), 0)
+            : (consolidado?.capital_global || 0) - (consolidado?.capital_no_asignado || 0)
         }
         moneda={portafolioSeleccionado?.moneda || 'MXN'}
       />
