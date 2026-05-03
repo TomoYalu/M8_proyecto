@@ -406,23 +406,28 @@ def seed_demo():
     pid = p["id"]
     hoy = date.today()
 
+    from datetime import timedelta
     activos = [
-        ("AAPL", 10, "USD"),
-        ("GLD", 5, "USD"),
-        ("MSFT", 8, "USD"),
-        ("PG", 15, "USD"),
+        ("AAPL", 10, "USD", 90),
+        ("GLD", 5, "USD", 60),
+        ("MSFT", 8, "USD", 45),
+        ("PG", 15, "USD", 30),
     ]
 
-    for ticker, cantidad, moneda in activos:
+    for ticker, cantidad, moneda, dias_atras in activos:
+        fecha_compra = hoy - timedelta(days=dias_atras)
+        # Ajustar a día hábil (lun-vie)
+        while fecha_compra.weekday() >= 5:
+            fecha_compra -= timedelta(days=1)
         try:
             from ..services.yfinance_service import obtener_precio_cierre_historico
-            datos = obtener_precio_cierre_historico(ticker, hoy)
+            datos = obtener_precio_cierre_historico(ticker, fecha_compra)
             precio = datos["precio_cierre"]
         except Exception:
             precio = 100  # fallback
 
         svc.registrar_transaccion(
-            pid, user_id, ticker, "compra", hoy,
+            pid, user_id, ticker, "compra", fecha_compra,
             precio, cantidad, 0, moneda, estado="confirmada",
         )
 
