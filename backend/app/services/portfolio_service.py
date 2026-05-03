@@ -53,7 +53,7 @@ def _calcular_pnl_neto(pnl_bruto: Decimal) -> dict:
 
 # ── CRUD de portafolios ─────────────────────────────────────────
 
-def crear_portafolio(user_id: int, nombre: str, descripcion: str = None, moneda: str = "MXN") -> dict:
+def crear_portafolio(user_id: int, nombre: str, descripcion: str = None, moneda: str = "MXN", capital_inicial: float = 0) -> dict:
     """
     Crea un nuevo portafolio con nombre único por usuario.
 
@@ -70,6 +70,7 @@ def crear_portafolio(user_id: int, nombre: str, descripcion: str = None, moneda:
         nombre=nombre,
         descripcion=descripcion,
         moneda=moneda,
+        capital_inicial=_dec(capital_inicial),
     )
     try:
         db.session.add(portafolio)
@@ -103,10 +104,10 @@ def obtener_portafolio(portafolio_id: int, user_id: int) -> dict:
 
 
 def actualizar_portafolio(
-    portafolio_id: int, user_id: int, nombre: str = None, descripcion: str = None
+    portafolio_id: int, user_id: int, nombre: str = None, descripcion: str = None, capital_inicial=None
 ) -> dict:
     """
-    Actualiza nombre y/o descripción de un portafolio.
+    Actualiza nombre, descripción y/o capital inicial de un portafolio.
 
     Raises:
         ValueError: si el nombre está vacío, duplicado o el portafolio no existe.
@@ -120,6 +121,9 @@ def actualizar_portafolio(
 
     if descripcion is not None:
         portafolio.descripcion = descripcion
+
+    if capital_inicial is not None:
+        portafolio.capital_inicial = _dec(capital_inicial)
 
     try:
         db.session.commit()
@@ -580,6 +584,14 @@ def _procesar_compra(posicion, portafolio_id, user_id, ticker, precio_unitario, 
     posicion.costo_total = nuevo_costo
     posicion.precio_promedio = nuevo_costo / nueva_cantidad if nueva_cantidad > 0 else Decimal("0")
 
+    # Asignar precio_actual si no tiene uno válido (para que no quede en "Sin precio")
+    if posicion.precio_actual is None or _dec(posicion.precio_actual) <= 0:
+        posicion.precio_actual = precio_unitario
+        posicion.valor_mercado = precio_unitario * nueva_cantidad
+        posicion.pnl_bruto = Decimal("0")
+        posicion.pnl_porcentual = Decimal("0")
+        posicion.ultima_actualizacion = datetime.now(timezone.utc)
+
     return posicion, None
 
 
@@ -712,6 +724,7 @@ def _portafolio_to_dict(portafolio: Portafolio) -> dict:
         "nombre": portafolio.nombre,
         "descripcion": portafolio.descripcion,
         "moneda": portafolio.moneda,
+        "capital_inicial": float(_dec(portafolio.capital_inicial)),
         "fecha_creacion": portafolio.fecha_creacion.isoformat(),
     }
 

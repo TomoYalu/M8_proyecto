@@ -72,9 +72,10 @@ def crear_portafolio():
     nombre = data.get("nombre", "")
     descripcion = data.get("descripcion")
     moneda = data.get("moneda", "MXN")
+    capital_inicial = data.get("capital_inicial", 0)
 
     try:
-        resultado = svc.crear_portafolio(_USER_ID, nombre, descripcion, moneda=moneda)
+        resultado = svc.crear_portafolio(_USER_ID, nombre, descripcion, moneda=moneda, capital_inicial=capital_inicial)
     except ValueError as e:
         msg = str(e)
         if "Ya existe" in msg:
@@ -108,14 +109,16 @@ def obtener_portafolio(portafolio_id: int):
 
 @portafolios_bp.route("/<int:portafolio_id>", methods=["PUT"])
 def actualizar_portafolio(portafolio_id: int):
-    """Renombra o actualiza la descripción de un portafolio."""
+    """Actualiza nombre, descripción y/o capital inicial de un portafolio."""
     data = request.get_json(silent=True) or {}
     nombre = data.get("nombre")
     descripcion = data.get("descripcion")
+    capital_inicial = data.get("capital_inicial")
 
     try:
         resultado = svc.actualizar_portafolio(
-            portafolio_id, _USER_ID, nombre=nombre, descripcion=descripcion
+            portafolio_id, _USER_ID, nombre=nombre, descripcion=descripcion,
+            capital_inicial=capital_inicial,
         )
     except ValueError as e:
         msg = str(e)

@@ -58,7 +58,7 @@ export default function usePortfolio() {
 
     // Acciones envueltas con loading/error
     fetchPortafolios: () => ejecutar(fetchPortafolios),
-    crearPortafolio: (nombre, desc) => ejecutar(() => crearPortafolio(nombre, desc)),
+    crearPortafolio: (nombre, desc, capitalInicial) => ejecutar(() => crearPortafolio(nombre, desc, capitalInicial)),
     eliminarPortafolio: (id) => ejecutar(() => eliminarPortafolio(id)),
     actualizarPortafolio: (id, data) => ejecutar(() => actualizarPortafolio(id, data)),
     fetchPosiciones: (id) => ejecutar(() => fetchPosiciones(id)),

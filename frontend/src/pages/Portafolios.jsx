@@ -68,6 +68,7 @@ export default function Portafolios() {
   const [confirmandoEliminar, setConfirmandoEliminar] = useState(null);
   const [formNombre, setFormNombre] = useState('');
   const [formDescripcion, setFormDescripcion] = useState('');
+  const [formCapitalInicial, setFormCapitalInicial] = useState('');
   const [errorLocal, setErrorLocal] = useState(null);
   const [loadingLocal, setLoadingLocal] = useState(false);
   const [tickerPrellenado, setTickerPrellenado] = useState(null);
@@ -144,11 +145,16 @@ export default function Portafolios() {
     setLoadingLocal(true);
     setErrorLocal(null);
     try {
-      await crearPortafolio(formNombre.trim(), formDescripcion.trim() || null);
+      await crearPortafolio(
+        formNombre.trim(),
+        formDescripcion.trim() || null,
+        parseFloat(formCapitalInicial) || 0,
+      );
       await fetchConsolidado();
       setModalCrear(false);
       setFormNombre('');
       setFormDescripcion('');
+      setFormCapitalInicial('');
     } catch (err) {
       setErrorLocal(err.message);
     } finally {
@@ -160,6 +166,7 @@ export default function Portafolios() {
     setModalEditar(portafolio);
     setFormNombre(portafolio.nombre);
     setFormDescripcion(portafolio.descripcion || '');
+    setFormCapitalInicial(String(portafolio.capital_inicial || ''));
     setErrorLocal(null);
   };
 
@@ -174,11 +181,13 @@ export default function Portafolios() {
       await actualizarPortafolio(modalEditar.id, {
         nombre: formNombre.trim(),
         descripcion: formDescripcion.trim() || null,
+        capital_inicial: parseFloat(formCapitalInicial) || 0,
       });
       await fetchConsolidado();
       setModalEditar(null);
       setFormNombre('');
       setFormDescripcion('');
+      setFormCapitalInicial('');
     } catch (err) {
       setErrorLocal(err.message);
     } finally {
@@ -231,6 +240,7 @@ export default function Portafolios() {
     setErrorLocal(null);
     setFormNombre('');
     setFormDescripcion('');
+    setFormCapitalInicial('');
   };
 
   // ─── Datos derivados ──────────────────────────────────────────
@@ -518,6 +528,24 @@ export default function Portafolios() {
               className={`${inputClasses} resize-none`}
             />
           </div>
+          <div>
+            <label htmlFor="crear-capital" className="block text-xs text-bloomberg-text-muted mb-1">
+              Capital inicial (presupuesto)
+            </label>
+            <input
+              id="crear-capital"
+              type="number"
+              step="1000"
+              min="0"
+              value={formCapitalInicial}
+              onChange={(e) => setFormCapitalInicial(e.target.value)}
+              placeholder="Ej. 100000"
+              className={inputClasses}
+            />
+            <p className="text-[10px] text-bloomberg-text-muted mt-0.5">
+              Monto total disponible para invertir en este portafolio
+            </p>
+          </div>
           <div className="flex justify-end gap-3">
             <button
               onClick={() => setModalCrear(false)}
@@ -579,6 +607,21 @@ export default function Portafolios() {
               onChange={(e) => setFormDescripcion(e.target.value)}
               rows={2}
               className={`${inputClasses} resize-none`}
+            />
+          </div>
+          <div>
+            <label htmlFor="editar-capital" className="block text-xs text-bloomberg-text-muted mb-1">
+              Capital inicial (presupuesto)
+            </label>
+            <input
+              id="editar-capital"
+              type="number"
+              step="1000"
+              min="0"
+              value={formCapitalInicial}
+              onChange={(e) => setFormCapitalInicial(e.target.value)}
+              placeholder="Ej. 100000"
+              className={inputClasses}
             />
           </div>
           <div className="flex justify-end gap-3">
@@ -644,6 +687,7 @@ export default function Portafolios() {
         onSubmit={handleRegistrarTransaccion}
         loading={loadingLocal}
         error={errorLocal}
+        capitalTotal={portafolioSeleccionado?.capital_inicial || 0}
         valorInvertido={
           posicionesActivas.reduce((sum, p) => sum + (p.costo_total || 0), 0)
         }

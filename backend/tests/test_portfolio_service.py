@@ -371,6 +371,8 @@ class TestVistaConsolidadaPreciosNulos:
         pos_aapl = Posicion.query.filter_by(portafolio_id=p["id"], ticker="AAPL").first()
         pos_aapl.precio_actual = Decimal("120")
         # MSFT queda con precio_actual = None (default)
+        pos_msft = Posicion.query.filter_by(portafolio_id=p["id"], ticker="MSFT").first()
+        pos_msft.precio_actual = None
         db.session.commit()
 
         result = svc.vista_consolidada(USER_ID)
@@ -383,9 +385,13 @@ class TestVistaConsolidadaPreciosNulos:
 
     def test_todas_posiciones_sin_precio(self, db):
         """Cuando ninguna posición tiene precio, valor_total y pnl son 0."""
+        from app.models.portafolio import Posicion
         p = _crear_portafolio(db, "Sin Precios")
         _compra(db, p["id"], "AAPL", 100, 10)
-        # No asignar precio_actual
+        # Reset precio_actual to None after compra
+        pos = Posicion.query.filter_by(portafolio_id=p["id"], ticker="AAPL").first()
+        pos.precio_actual = None
+        db.session.commit()
 
         result = svc.vista_consolidada(USER_ID)
         port = result["portafolios"][0]
@@ -416,9 +422,13 @@ class TestPrecioPendiente:
 
     def test_precio_pendiente_true_cuando_sin_precio(self, db):
         """Posición sin precio_actual tiene precio_pendiente=True."""
+        from app.models.portafolio import Posicion
         p = _crear_portafolio(db, "Pendiente")
         _compra(db, p["id"], "AAPL", 100, 10)
-        # No asignar precio_actual
+        # Reset precio_actual to None after compra
+        pos = Posicion.query.filter_by(portafolio_id=p["id"], ticker="AAPL").first()
+        pos.precio_actual = None
+        db.session.commit()
 
         posiciones = svc.obtener_posiciones(p["id"], USER_ID)
         assert posiciones[0]["precio_pendiente"] is True
@@ -471,7 +481,10 @@ class TestRefrescarPrecios:
         from app.models.portafolio import Posicion
         p = _crear_portafolio(db, "Refrescar")
         _compra(db, p["id"], "AAPL", 100, 10)
-        # precio_actual queda None
+        # Reset precio_actual to None after compra
+        pos = Posicion.query.filter_by(portafolio_id=p["id"], ticker="AAPL").first()
+        pos.precio_actual = None
+        db.session.commit()
 
         # Mock yfinance_service.obtener_precios_multiples
         def mock_precios(tickers):
@@ -496,9 +509,13 @@ class TestRefrescarPrecios:
 
     def test_refrescar_fallo_mantiene_precio_original(self, db, monkeypatch):
         """Si yfinance falla para un ticker, se mantiene el precio original."""
+        from app.models.portafolio import Posicion
         p = _crear_portafolio(db, "Fallo")
         _compra(db, p["id"], "AAPL", 100, 10)
-        # precio_actual queda None
+        # Reset precio_actual to None after compra
+        pos = Posicion.query.filter_by(portafolio_id=p["id"], ticker="AAPL").first()
+        pos.precio_actual = None
+        db.session.commit()
 
         # Mock que retorna sin precio
         def mock_precios(tickers):
