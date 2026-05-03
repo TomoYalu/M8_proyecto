@@ -1,3 +1,10 @@
+/**
+ * Lakshmi Q2 - Gestión de Inversiones
+ * Módulo: Portafolios
+ * Autor: Luis Yhaser Olmos Torres
+ * Institución: Tecnológico de Monterrey
+ * Fecha de creación: 2026-05-02
+ */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import useSimulator from '../../hooks/useSimulator';
 import useOptimizer from '../../hooks/useOptimizer';

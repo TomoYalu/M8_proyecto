@@ -1,4 +1,11 @@
 /**
+ * Lakshmi Q2 - Gestión de Inversiones
+ * Módulo: Dashboard Widgets
+ * Autor: Luis Yhaser Olmos Torres
+ * Institución: Tecnológico de Monterrey
+ * Fecha de creación: 2026-05-02
+ */
+/**
  * WidgetGrid — Contenedor GridStack con 12 columnas para widgets configurables.
  *
  * Usa refs y useEffect para inicializar GridStack. Al redimensionar un widget,

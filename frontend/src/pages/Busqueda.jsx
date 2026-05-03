@@ -1,3 +1,10 @@
+/**
+ * Lakshmi Q2 - Gestión de Inversiones
+ * Módulo: Búsqueda de Activos
+ * Autor: Luis Yhaser Olmos Torres
+ * Institución: Tecnológico de Monterrey
+ * Fecha de creación: 2026-05-02
+ */
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useStore from '../store';

@@ -1,4 +1,11 @@
 /**
+ * Lakshmi Q2 - Gestión de Inversiones
+ * Módulo: Alertas
+ * Autor: Luis Yhaser Olmos Torres
+ * Institución: Tecnológico de Monterrey
+ * Fecha de creación: 2026-05-02
+ */
+/**
  * Badge con contador de alertas no leídas.
  * Muestra un círculo rojo con el número si count > 0.
  *

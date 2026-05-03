@@ -1,3 +1,9 @@
+# Lakshmi Q2 - Gestión de Inversiones
+# Módulo: Modelos de Datos
+# Autor: Luis Yhaser Olmos Torres
+# Institución: Tecnológico de Monterrey
+# Fecha de creación: 2026-05-02
+#
 """
 Paquete de modelos SQLAlchemy.
 

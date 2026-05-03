@@ -1,3 +1,10 @@
+/**
+ * Lakshmi Q2 - Gestión de Inversiones
+ * Módulo: Infraestructura
+ * Autor: Luis Yhaser Olmos Torres
+ * Institución: Tecnológico de Monterrey
+ * Fecha de creación: 2026-05-02
+ */
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
 import Navbar from './components/layout/Navbar';

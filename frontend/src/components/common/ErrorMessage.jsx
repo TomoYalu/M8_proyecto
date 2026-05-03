@@ -1,4 +1,11 @@
 /**
+ * Lakshmi Q2 - Gestión de Inversiones
+ * Módulo: Componentes Comunes
+ * Autor: Luis Yhaser Olmos Torres
+ * Institución: Tecnológico de Monterrey
+ * Fecha de creación: 2026-05-02
+ */
+/**
  * Mensaje de error amigable sin stack trace.
  * @param {object} props
  * @param {string} [props.mensaje='Ocurrió un error inesperado.'] - Texto del error

@@ -1,3 +1,10 @@
+/**
+ * Lakshmi Q2 - Gestión de Inversiones
+ * Módulo: Análisis Técnico
+ * Autor: Luis Yhaser Olmos Torres
+ * Institución: Tecnológico de Monterrey
+ * Fecha de creación: 2026-05-02
+ */
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { TICKERS_POR_CATEGORIA, NOMBRE_POR_TICKER } from '../../constants/tickers';
 

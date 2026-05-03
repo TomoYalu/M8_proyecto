@@ -1,3 +1,10 @@
+/**
+ * Lakshmi Q2 - Gestión de Inversiones
+ * Módulo: Componentes Comunes
+ * Autor: Luis Yhaser Olmos Torres
+ * Institución: Tecnológico de Monterrey
+ * Fecha de creación: 2026-05-02
+ */
 import { useState, useEffect } from 'react';
 
 const BREAKPOINT = 1280;

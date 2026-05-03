@@ -1,3 +1,9 @@
+# Lakshmi Q2 - Gestión de Inversiones
+# Módulo: Datos de Mercado
+# Autor: Luis Yhaser Olmos Torres
+# Institución: Tecnológico de Monterrey
+# Fecha de creación: 2026-05-02
+#
 """
 Wrapper de yfinance con caché en la tabla precios_cache.
 

@@ -1,3 +1,9 @@
+# Lakshmi Q2 - Gestión de Inversiones
+# Módulo: General
+# Autor: Luis Yhaser Olmos Torres
+# Institución: Tecnológico de Monterrey
+# Fecha de creación: 2026-05-02
+#
 # =============================================================================
 # Lakshmi Q2 — Gunicorn Configuration
 # Worker class: eventlet (requerido para Flask-SocketIO / WebSocket)

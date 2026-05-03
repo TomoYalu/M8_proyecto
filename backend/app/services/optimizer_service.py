@@ -1,3 +1,9 @@
+# Lakshmi Q2 - Gestión de Inversiones
+# Módulo: Optimización Markowitz
+# Autor: Luis Yhaser Olmos Torres
+# Institución: Tecnológico de Monterrey
+# Fecha de creación: 2026-05-02
+#
 """
 Servicio de optimización de portafolios — Motor Markowitz.
 

@@ -1,4 +1,11 @@
 /**
+ * Lakshmi Q2 - Gestión de Inversiones
+ * Módulo: Portafolios
+ * Autor: Luis Yhaser Olmos Torres
+ * Institución: Tecnológico de Monterrey
+ * Fecha de creación: 2026-05-02
+ */
+/**
  * Tabla de asignación detallada / orden de ejecución.
  *
  * Muestra por activo: Ticker, Peso (%), Acciones, Monto (USD), Precio Spot,

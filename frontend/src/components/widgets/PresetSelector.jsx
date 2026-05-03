@@ -1,4 +1,11 @@
 /**
+ * Lakshmi Q2 - Gestión de Inversiones
+ * Módulo: Dashboard Widgets
+ * Autor: Luis Yhaser Olmos Torres
+ * Institución: Tecnológico de Monterrey
+ * Fecha de creación: 2026-05-02
+ */
+/**
  * PresetSelector — Selector de presets de layout para el dashboard.
  *
  * Muestra un grupo de botones para seleccionar entre los 3 presets:

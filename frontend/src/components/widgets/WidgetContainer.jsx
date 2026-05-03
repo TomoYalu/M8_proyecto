@@ -1,4 +1,11 @@
 /**
+ * Lakshmi Q2 - Gestión de Inversiones
+ * Módulo: Dashboard Widgets
+ * Autor: Luis Yhaser Olmos Torres
+ * Institución: Tecnológico de Monterrey
+ * Fecha de creación: 2026-05-02
+ */
+/**
  * WidgetContainer — Wrapper para cada widget del dashboard.
  *
  * Muestra una barra de título con el nombre del widget y un botón

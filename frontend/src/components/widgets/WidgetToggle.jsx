@@ -1,4 +1,11 @@
 /**
+ * Lakshmi Q2 - Gestión de Inversiones
+ * Módulo: Dashboard Widgets
+ * Autor: Luis Yhaser Olmos Torres
+ * Institución: Tecnológico de Monterrey
+ * Fecha de creación: 2026-05-02
+ */
+/**
  * WidgetToggle — Botón toggle (ícono de ojo) para mostrar/ocultar un widget.
  *
  * Se usa en paneles de configuración para controlar la visibilidad

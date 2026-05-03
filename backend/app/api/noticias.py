@@ -1,3 +1,9 @@
+# Lakshmi Q2 - Gestión de Inversiones
+# Módulo: Noticias
+# Autor: Luis Yhaser Olmos Torres
+# Institución: Tecnológico de Monterrey
+# Fecha de creación: 2026-05-02
+#
 """
 Blueprint REST para el semáforo de noticias y análisis de sentimiento.
 

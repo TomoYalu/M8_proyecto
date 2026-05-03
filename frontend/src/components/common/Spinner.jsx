@@ -1,4 +1,11 @@
 /**
+ * Lakshmi Q2 - Gestión de Inversiones
+ * Módulo: Componentes Comunes
+ * Autor: Luis Yhaser Olmos Torres
+ * Institución: Tecnológico de Monterrey
+ * Fecha de creación: 2026-05-02
+ */
+/**
  * Spinner de carga con mensaje descriptivo en español.
  * @param {object} props
  * @param {string} [props.mensaje='Cargando datos...'] - Texto descriptivo
