@@ -220,8 +220,10 @@ function SemaforoCompuestoIndicator({ resultado }) {
  * Requisitos cubiertos: 3.1–3.7, 6.5, 11.1–11.6, 12.2, 12.4, 12.7
  */
 export default function PositionTable({ posiciones = [], preciosEnVivo = {}, onEditarPosicion }) {
-  const [semaforos, setSemaforos] = useState({});
-  const [rsiData, setRsiData] = useState({});
+  const semaforos = useStore((s) => s.semaforosCache);
+  const rsiData = useStore((s) => s.rsiCache);
+  const fetchSemaforosBatch = useStore((s) => s.fetchSemaforosBatch);
+  const fetchRsiBatch = useStore((s) => s.fetchRsiBatch);
   const [drawerTicker, setDrawerTicker] = useState(null);
   const [drawerAbierto, setDrawerAbierto] = useState(false);
 
@@ -230,71 +232,16 @@ export default function PositionTable({ posiciones = [], preciosEnVivo = {}, onE
     setDrawerAbierto(true);
   }, []);
 
-  /**
-   * Fetch semáforo data for all tickers in the position table.
-   */
-  const fetchSemaforos = useCallback(async (tickers) => {
-    const resultados = await Promise.allSettled(
-      tickers.map(async (ticker) => {
-        const res = await fetch(`/api/noticias/${encodeURIComponent(ticker)}/semaforo`);
-        if (!res.ok) return { ticker, data: null };
-        const data = await res.json();
-        return { ticker, data };
-      })
-    );
 
-    const nuevos = {};
-    for (const res of resultados) {
-      if (res.status === 'fulfilled' && res.value.data) {
-        nuevos[res.value.ticker] = res.value.data;
-      }
-    }
-    setSemaforos(nuevos);
-  }, []);
 
-  /**
-   * Fetch RSI data for all tickers from the technical analysis endpoint.
-   * Uses a short period to get just the latest RSI value.
-   */
-  const fetchRsiData = useCallback(async (tickers) => {
-    const resultados = await Promise.allSettled(
-      tickers.map(async (ticker) => {
-        try {
-          const res = await fetch(`/api/analisis?ticker=${encodeURIComponent(ticker)}&periodo=3mo&intervalo=1d`);
-          if (!res.ok) return { ticker, rsi: null };
-          const data = await res.json();
-          // RSI is an array; take the last non-null value
-          const rsiArray = data.rsi || [];
-          let lastRsi = null;
-          for (let i = rsiArray.length - 1; i >= 0; i--) {
-            if (rsiArray[i] != null) {
-              lastRsi = rsiArray[i];
-              break;
-            }
-          }
-          return { ticker, rsi: lastRsi };
-        } catch {
-          return { ticker, rsi: null };
-        }
-      })
-    );
-
-    const nuevos = {};
-    for (const res of resultados) {
-      if (res.status === 'fulfilled') {
-        nuevos[res.value.ticker] = res.value.rsi;
-      }
-    }
-    setRsiData(nuevos);
-  }, []);
-
+  // RSI y semáforos se obtienen via batch desde el store
   useEffect(() => {
     const tickers = posiciones.map((p) => p.ticker).filter(Boolean);
     if (tickers.length > 0) {
-      fetchSemaforos(tickers);
-      fetchRsiData(tickers);
+      fetchSemaforosBatch(tickers);
+      fetchRsiBatch(tickers);
     }
-  }, [posiciones, fetchSemaforos, fetchRsiData]);
+  }, [posiciones]);
 
   if (posiciones.length === 0) {
     return (

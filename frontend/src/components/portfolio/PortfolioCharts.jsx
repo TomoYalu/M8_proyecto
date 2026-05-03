@@ -6,6 +6,7 @@
  * Fecha de creación: 2026-05-03
  */
 import { useState, useEffect, useCallback } from 'react';
+import useStore from '../../store';
 import Plot from 'react-plotly.js';
 import Spinner from '../common/Spinner';
 
@@ -50,36 +51,38 @@ const plotLayout = (title) => ({
  * Panel de gráficas del portafolio: donut de asignación, valor histórico, proyección.
  */
 export default function PortfolioCharts({ portafolioId, posiciones, moneda = 'USD' }) {
-  const [historico, setHistorico] = useState(null);
   const [rangoHist, setRangoHist] = useState('3m');
   const [cargandoHist, setCargandoHist] = useState(false);
-
-  const [proyeccion, setProyeccion] = useState(null);
   const [horizonte, setHorizonte] = useState('1y');
   const [cargandoProy, setCargandoProy] = useState(false);
 
-  // Fetch histórico
-  const fetchHistorico = useCallback(async (rango) => {
+  const chartsCache = useStore((s) => s.chartsCache);
+  const setChartsCache = useStore((s) => s.setChartsCache);
+
+  const histKey = `${portafolioId}:hist:${rangoHist}`;
+  const proyKey = `${portafolioId}:proy:${horizonte}`;
+  const historico = chartsCache[histKey] ?? null;
+  const proyeccion = chartsCache[proyKey] ?? null;
+
+  useEffect(() => {
+    if (!portafolioId || historico) return;
     setCargandoHist(true);
-    try {
-      const r = await fetch(`/api/portafolios/${portafolioId}/historico?rango=${rango}`);
-      if (r.ok) setHistorico(await r.json());
-    } catch { /* ignore */ }
-    finally { setCargandoHist(false); }
-  }, [portafolioId]);
+    fetch(`/api/portafolios/${portafolioId}/historico?rango=${rangoHist}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setChartsCache(histKey, d); })
+      .catch(() => {})
+      .finally(() => setCargandoHist(false));
+  }, [portafolioId, histKey, historico]);
 
-  // Fetch proyección
-  const fetchProyeccion = useCallback(async (h) => {
+  useEffect(() => {
+    if (!portafolioId || proyeccion) return;
     setCargandoProy(true);
-    try {
-      const r = await fetch(`/api/portafolios/${portafolioId}/proyeccion?horizonte=${h}`);
-      if (r.ok) setProyeccion(await r.json());
-    } catch { /* ignore */ }
-    finally { setCargandoProy(false); }
-  }, [portafolioId]);
-
-  useEffect(() => { fetchHistorico(rangoHist); }, [fetchHistorico, rangoHist]);
-  useEffect(() => { fetchProyeccion(horizonte); }, [fetchProyeccion, horizonte]);
+    fetch(`/api/portafolios/${portafolioId}/proyeccion?horizonte=${horizonte}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setChartsCache(proyKey, d); })
+      .catch(() => {})
+      .finally(() => setCargandoProy(false));
+  }, [portafolioId, proyKey, proyeccion]);
 
   // ─── Donut de asignación ──────────────────────────────────────
   const posActivas = (posiciones || []).filter(p => p.cantidad > 0 && p.valor_mercado > 0);

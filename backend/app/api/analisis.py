@@ -567,3 +567,29 @@ def patrones_ticker(ticker: str):
         "intervalo": intervalo,
         "patrones": patrones,
     }), 200
+
+
+@analisis_bp.route("/batch-rsi", methods=["POST"])
+def batch_rsi():
+    """Retorna el último RSI de múltiples tickers en una sola llamada."""
+    data = request.get_json(silent=True) or {}
+    tickers = data.get("tickers", [])
+    if not tickers or not isinstance(tickers, list):
+        return _error("Se requiere lista de tickers.", 400)
+
+    ta = TAService()
+    resultado = {}
+    for ticker in tickers[:20]:
+        try:
+            df = yfinance_service.obtener_datos_historicos(ticker, "3mo", "1d")
+            indicadores = ta.calcular_todos(df)
+            rsi_arr = indicadores.get("rsi", [])
+            last_rsi = None
+            for v in reversed(rsi_arr):
+                if v is not None:
+                    last_rsi = round(float(v), 2)
+                    break
+            resultado[ticker] = last_rsi
+        except Exception:
+            resultado[ticker] = None
+    return jsonify(resultado), 200

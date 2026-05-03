@@ -18,7 +18,7 @@ Requisitos cubiertos: 6.1, 6.2, 6.7
 
 import logging
 
-from flask import Blueprint, jsonify, g
+from flask import Blueprint, jsonify, request, g
 
 from ..extensions import db, socketio
 from ..models.noticia import Noticia
@@ -140,3 +140,22 @@ def forzar_actualizacion():
     except Exception as e:
         logger.error("Error al forzar actualización de noticias: %s", str(e))
         return _error("Error interno al actualizar noticias.", 500)
+
+
+
+@noticias_bp.route("/semaforos/batch", methods=["POST"])
+def semaforos_batch():
+    """Retorna semáforos para múltiples tickers en una sola llamada."""
+    data = request.get_json(silent=True) or {}
+    tickers = data.get("tickers", [])
+    if not tickers or not isinstance(tickers, list):
+        return jsonify({"error": "Se requiere lista de tickers."}), 400
+
+    resultado = {}
+    for ticker in tickers[:20]:  # máximo 20
+        try:
+            _auto_fetch_si_vacio(ticker)
+            resultado[ticker] = NewsService.obtener_semaforo(ticker)
+        except Exception:
+            resultado[ticker] = {"semaforo": "gris", "score_promedio": 0}
+    return jsonify(resultado), 200

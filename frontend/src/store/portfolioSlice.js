@@ -13,6 +13,9 @@ export const createPortfolioSlice = (set, get) => ({
   transacciones: {},     // { portafolio_id: { items, total, pagina, paginas } }
   consolidado: null,
   dashboardCache: {},   // { portafolio_id: data }
+  semaforosCache: {},  // { ticker: data }
+  rsiCache: {},        // { ticker: rsi_value }
+  chartsCache: {},     // { 'portId:tipo:param': data }
   dashboardDirty: {},   // { portafolio_id: true } — indica que hay cambios pendientes
 
   // ─── Portafolios CRUD ─────────────────────────────────────────
@@ -159,6 +162,46 @@ export const createPortfolioSlice = (set, get) => ({
   markDashboardDirty: (id) => set((state) => ({
     dashboardDirty: { ...state.dashboardDirty, [id]: true },
   })),
+
+  setChartsCache: (key, data) => set((s) => ({
+    chartsCache: { ...s.chartsCache, [key]: data },
+  })),
+
+  fetchSemaforosBatch: async (tickers) => {
+    const cached = get().semaforosCache;
+    const needed = tickers.filter(t => !(t in cached));
+    if (needed.length === 0) return cached;
+    try {
+      const res = await fetch('/api/noticias/semaforos/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tickers: needed }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set((s) => ({ semaforosCache: { ...s.semaforosCache, ...data } }));
+      }
+    } catch {}
+    return get().semaforosCache;
+  },
+
+  fetchRsiBatch: async (tickers) => {
+    const cached = get().rsiCache;
+    const needed = tickers.filter(t => !(t in cached));
+    if (needed.length === 0) return cached;
+    try {
+      const res = await fetch('/api/analisis/batch-rsi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tickers: needed }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        set((s) => ({ rsiCache: { ...s.rsiCache, ...data } }));
+      }
+    } catch {}
+    return get().rsiCache;
+  },
 
   setPortafolioActivo: (id) => set({ portafolioActivo: id }),
 });
