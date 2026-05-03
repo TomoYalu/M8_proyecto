@@ -343,7 +343,6 @@ export default function PositionTable({ posiciones = [], preciosEnVivo = {}, onE
             const precioMostrar = precioVivo?.precio ?? pos.precio_actual;
             const pnlColor = pos.pnl_bruto >= 0 ? 'text-bloomberg-green' : 'text-bloomberg-red';
             const pnlPctColor = pos.pnl_porcentual >= 0 ? 'text-bloomberg-green' : 'text-bloomberg-red';
-            const desactualizado = precioDesactualizado(pos) && !precioVivo;
             const esPool = pos.cantidad === 0;
 
             // Semáforo compuesto por activo (Req 11.1–11.6)
