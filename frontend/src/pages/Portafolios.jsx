@@ -751,7 +751,7 @@ export default function Portafolios() {
         </div>
       </Modal>
 
-      {/* Modal: Registrar transacción */}
+      {/* Modal: Agregar activo */}
       <TransactionForm
         abierto={modalTransaccion}
         tickerPrellenado={tickerPrellenado}
@@ -767,6 +767,7 @@ export default function Portafolios() {
         valorInvertido={
           posicionesActivas.reduce((sum, p) => sum + (p.costo_total || 0), 0)
         }
+        moneda={portafolioSeleccionado?.moneda || 'MXN'}
       />
 
       {/* Modal: Editar posición */}

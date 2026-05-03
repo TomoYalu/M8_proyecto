@@ -5,13 +5,17 @@ import usePrecioHistorico from '../../hooks/usePrecioHistorico';
 import { formatMoneda, formatNumero } from '../../utils/formatters';
 
 /**
- * Modal para registrar una transacción de compra/venta/dividendo.
+ * Modal para agregar un activo (compra) o registrar un dividendo.
  *
- * Campos: ticker, tipo, fecha, precio_unitario, cantidad, comision,
+ * Campos compra: ticker, fecha, precio_unitario, cantidad, comision,
  * moneda (MXN/USD), notas.
+ * Campos dividendo: ticker, fecha, monto por acción, cantidad de acciones.
  *
  * Incluye sección de "Asignación" con sliders para monto a invertir
  * y porcentaje, que auto-calculan la cantidad de títulos.
+ *
+ * Auto-pending: si capitalTotal > 0 y el costo excede el capital disponible,
+ * la transacción se registra como pendiente automáticamente.
  *
  * @param {object} props
  * @param {boolean} props.abierto - Controla visibilidad del modal
@@ -22,6 +26,7 @@ import { formatMoneda, formatNumero } from '../../utils/formatters';
  * @param {string} [props.tickerPrellenado] - Ticker pre-llenado desde búsqueda rápida
  * @param {number} [props.capitalTotal] - Capital total del usuario (0 = no mostrar banner)
  * @param {number} [props.valorInvertido] - Valor actualmente invertido
+ * @param {string} [props.moneda] - Moneda del portafolio (para el banner)
  *
  * Requisitos cubiertos: 2.1–2.7, 3.1–3.6, 4.1, 4.2, 12.1, 12.5, 12.7
  */
@@ -34,10 +39,10 @@ export default function TransactionForm({
   tickerPrellenado = null,
   capitalTotal = 0,
   valorInvertido = 0,
+  moneda: monedaPortafolio = 'MXN',
 }) {
   const [form, setForm] = useState({
     ticker: '',
-    tipo: 'compra',
     fecha: new Date().toISOString().split('T')[0],
     precio_unitario: '',
     cantidad: '',
@@ -45,6 +50,9 @@ export default function TransactionForm({
     moneda: 'MXN',
     notas: '',
   });
+
+  // ─── Dividendo toggle ─────────────────────────────────────────
+  const [esDividendo, setEsDividendo] = useState(false);
 
   // ─── Allocation state ─────────────────────────────────────────
   const [montoInvertir, setMontoInvertir] = useState('');
@@ -81,6 +89,16 @@ export default function TransactionForm({
   // ─── Derived values ───────────────────────────────────────────
   const capitalDisponible = capitalTotal > 0 ? capitalTotal - valorInvertido : 0;
   const precioNum = parseFloat(form.precio_unitario) || 0;
+  const cantidadNum = parseInt(form.cantidad, 10) || 0;
+  const costoTotal = cantidadNum * precioNum;
+  const tickerDisplay = form.ticker?.toUpperCase() || '—';
+
+  // Auto-pending detection
+  const autoPendiente =
+    !esDividendo && capitalTotal > 0 && costoTotal > 0 && costoTotal > capitalDisponible;
+
+  // Banner currency: use portfolio moneda
+  const bannerMoneda = monedaPortafolio || form.moneda;
 
   // ─── Initialize ticker from tickerPrellenado when modal opens ─
   useEffect(() => {
@@ -96,6 +114,7 @@ export default function TransactionForm({
       setMontoInvertir('');
       setPorcentaje('');
       setCantidadManual(false);
+      setEsDividendo(false);
     }
   }, [abierto]);
 
@@ -283,22 +302,25 @@ export default function TransactionForm({
     e.preventDefault();
     if (!validar()) return;
 
+    const tipo = esDividendo ? 'dividendo' : 'compra';
+    const estado = autoPendiente ? 'pendiente' : 'confirmada';
+
     onSubmit({
       ticker: form.ticker.trim().toUpperCase(),
-      tipo: form.tipo,
+      tipo,
       fecha: form.fecha,
       precio_unitario: Number(form.precio_unitario) || 0,
       cantidad: Number(form.cantidad) || 0,
-      comision: Number(form.comision) || 0,
+      comision: esDividendo ? 0 : Number(form.comision) || 0,
       moneda: form.moneda,
       notas: form.notas.trim() || null,
+      estado,
     });
   };
 
   const handleCerrar = () => {
     setForm({
       ticker: '',
-      tipo: 'compra',
       fecha: new Date().toISOString().split('T')[0],
       precio_unitario: '',
       cantidad: '',
@@ -306,6 +328,7 @@ export default function TransactionForm({
       moneda: 'MXN',
       notas: '',
     });
+    setEsDividendo(false);
     setErroresValidacion({});
     setTickerQuery('');
     setDropdownAbierto(false);
@@ -324,13 +347,8 @@ export default function TransactionForm({
 
   const listboxId = 'tx-ticker-listbox';
 
-  // ─── Computed display values ──────────────────────────────────
-  const cantidadNum = parseInt(form.cantidad, 10) || 0;
-  const costoTotal = cantidadNum * precioNum;
-  const tickerDisplay = form.ticker?.toUpperCase() || '—';
-
   return (
-    <Modal abierto={abierto} onCerrar={handleCerrar} titulo="Registrar Transacción" ancho="max-w-xl">
+    <Modal abierto={abierto} onCerrar={handleCerrar} titulo="Agregar Activo" ancho="max-w-xl">
       <form onSubmit={handleSubmit} noValidate aria-label="Formulario de transacción">
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-bloomberg-red/10 border border-bloomberg-red/20
@@ -339,22 +357,22 @@ export default function TransactionForm({
           </div>
         )}
 
-        {/* Capital banner — only show if capitalTotal > 0 */}
+        {/* Capital banner — always show when capitalTotal > 0 */}
         {capitalTotal > 0 && (
           <div className="mb-4 px-3 py-2 rounded-lg bg-bloomberg-panel border border-white/5
                           flex items-center gap-3 text-xs">
             <span className="text-bloomberg-text-muted">
-              Capital: <span className="text-bloomberg-text font-medium">{formatMoneda(capitalTotal, form.moneda)}</span>
+              Capital: <span className="text-bloomberg-text font-medium">{formatMoneda(capitalTotal, bannerMoneda)}</span>
             </span>
             <span className="text-white/20">|</span>
             <span className="text-bloomberg-text-muted">
-              Invertido: <span className="text-bloomberg-text font-medium">{formatMoneda(valorInvertido, form.moneda)}</span>
+              Invertido: <span className="text-bloomberg-text font-medium">{formatMoneda(valorInvertido, bannerMoneda)}</span>
             </span>
             <span className="text-white/20">|</span>
             <span className="text-bloomberg-text-muted">
               Disponible:{' '}
               <span className={`font-medium ${capitalDisponible > 0 ? 'text-bloomberg-green' : 'text-bloomberg-red'}`}>
-                {formatMoneda(capitalDisponible, form.moneda)}
+                {formatMoneda(capitalDisponible, bannerMoneda)}
               </span>
             </span>
           </div>
@@ -436,26 +454,6 @@ export default function TransactionForm({
             )}
           </div>
 
-          {/* Tipo */}
-          <div>
-            <label htmlFor="tx-tipo" className="block text-xs text-bloomberg-text-muted mb-1">
-              Tipo de operación *
-            </label>
-            <select
-              id="tx-tipo"
-              name="tipo"
-              value={form.tipo}
-              onChange={handleChange}
-              className={inputClasses('tipo')}
-              required
-              aria-required="true"
-            >
-              <option value="compra">Compra</option>
-              <option value="venta">Venta</option>
-              <option value="dividendo">Dividendo</option>
-            </select>
-          </div>
-
           {/* Fecha */}
           <div>
             <label htmlFor="tx-fecha" className="block text-xs text-bloomberg-text-muted mb-1">
@@ -480,7 +478,7 @@ export default function TransactionForm({
           {/* Precio unitario with auto-fill and loading indicator (Task 6.2) */}
           <div>
             <label htmlFor="tx-precio" className="block text-xs text-bloomberg-text-muted mb-1">
-              Precio unitario
+              {esDividendo ? 'Monto por acción' : 'Precio unitario'}
             </label>
             <div className="relative">
               <input
@@ -526,135 +524,10 @@ export default function TransactionForm({
             )}
           </div>
 
-          {/* ─── Asignación section (full-width) ─────────────────── */}
-          <div className="col-span-2 my-1">
-            {/* Section divider */}
-            <div className="flex items-center gap-2 mb-3">
-              <div className="h-px flex-1 bg-white/10" />
-              <span className="text-[10px] uppercase tracking-wider text-bloomberg-text-muted font-medium">
-                Asignación
-              </span>
-              <div className="h-px flex-1 bg-white/10" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              {/* Monto a invertir — slider + input */}
-              <div>
-                <label htmlFor="tx-monto" className="block text-xs text-bloomberg-text-muted mb-1">
-                  Monto a invertir
-                </label>
-                <input
-                  id="tx-monto"
-                  type="number"
-                  step="100"
-                  min="0"
-                  value={montoInvertir}
-                  onChange={(e) => handleMontoChange(e.target.value)}
-                  placeholder="0.00"
-                  className={`${inputClasses('_monto')} mb-1.5`}
-                  aria-describedby="tx-monto-desc"
-                />
-                <input
-                  type="range"
-                  min="0"
-                  max={capitalTotal > 0 ? capitalDisponible : montoSliderMax}
-                  step="100"
-                  value={parseFloat(montoInvertir) || 0}
-                  onChange={(e) => handleMontoChange(e.target.value)}
-                  className="w-full h-1.5 rounded-full appearance-none cursor-pointer
-                             bg-white/10 accent-bloomberg-accent"
-                  aria-label="Slider monto a invertir"
-                />
-                <div className="flex justify-between text-[10px] text-bloomberg-text-muted mt-0.5">
-                  <span>$0</span>
-                  <span>{formatMoneda(capitalTotal > 0 ? capitalDisponible : montoSliderMax, form.moneda)}</span>
-                </div>
-              </div>
-
-              {/* Porcentaje de cartera — slider + input (only meaningful with capitalTotal) */}
-              <div>
-                <label htmlFor="tx-pct" className="block text-xs text-bloomberg-text-muted mb-1">
-                  {capitalTotal > 0 ? '% de cartera' : '% del monto'}
-                </label>
-                {capitalTotal > 0 ? (
-                  <>
-                    <input
-                      id="tx-pct"
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      max="100"
-                      value={porcentaje}
-                      onChange={(e) => handlePorcentajeChange(e.target.value)}
-                      placeholder="0.0"
-                      className={`${inputClasses('_pct')} mb-1.5`}
-                    />
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="0.5"
-                      value={parseFloat(porcentaje) || 0}
-                      onChange={(e) => handlePorcentajeChange(e.target.value)}
-                      className="w-full h-1.5 rounded-full appearance-none cursor-pointer
-                                 bg-white/10 accent-bloomberg-accent"
-                      aria-label="Slider porcentaje de cartera"
-                    />
-                    <div className="flex justify-between text-[10px] text-bloomberg-text-muted mt-0.5">
-                      <span>0%</span>
-                      <span>100%</span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex items-center h-[38px] px-3 rounded-lg bg-bloomberg-bg border border-white/10">
-                    <span className="text-xs text-bloomberg-text-muted">
-                      {montoInvertir && precioNum > 0
-                        ? `${((cantidadNum * precioNum) / (parseFloat(montoInvertir) || 1) * 100).toFixed(1)}% utilizado`
-                        : 'Ingresa monto y precio'}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Calculated quantity display */}
-            {precioNum > 0 && cantidadNum > 0 && (
-              <div className="mt-3 px-3 py-2.5 rounded-lg bg-bloomberg-accent/5 border border-bloomberg-accent/20">
-                <div className="flex items-baseline justify-between">
-                  <div>
-                    <span className="text-lg font-bold text-bloomberg-accent">
-                      {formatNumero(cantidadNum, 0)}
-                    </span>
-                    <span className="text-sm text-bloomberg-text-muted ml-1.5">
-                      títulos de <span className="text-bloomberg-text font-medium">{tickerDisplay}</span>
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs text-bloomberg-text-muted">Costo total: </span>
-                    <span className="text-sm font-medium text-bloomberg-text">
-                      {formatMoneda(costoTotal, form.moneda)}
-                    </span>
-                  </div>
-                </div>
-                {precioNum > 0 && (
-                  <p className="text-[10px] text-bloomberg-text-muted mt-1" id="tx-monto-desc">
-                    a {formatMoneda(precioNum, form.moneda)} por título
-                    {montoInvertir && costoTotal < parseFloat(montoInvertir)
-                      ? ` · Sobrante: ${formatMoneda(parseFloat(montoInvertir) - costoTotal, form.moneda)}`
-                      : ''}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Divider bottom */}
-            <div className="h-px bg-white/10 mt-3" />
-          </div>
-
-          {/* Cantidad — editable but shows auto-calculated note */}
+          {/* Cantidad */}
           <div>
             <label htmlFor="tx-cantidad" className="block text-xs text-bloomberg-text-muted mb-1">
-              Cantidad
+              {esDividendo ? 'Acciones con derecho' : 'Cantidad'}
             </label>
             <input
               id="tx-cantidad"
@@ -665,11 +538,11 @@ export default function TransactionForm({
               value={form.cantidad}
               onChange={(e) => handleCantidadDirecta(e.target.value)}
               placeholder="0"
-              className={`${inputClasses('cantidad')} ${!cantidadManual && cantidadNum > 0 ? 'border-bloomberg-accent/30' : ''}`}
+              className={`${inputClasses('cantidad')} ${!cantidadManual && cantidadNum > 0 && !esDividendo ? 'border-bloomberg-accent/30' : ''}`}
               aria-invalid={!!erroresValidacion.cantidad}
               aria-describedby="tx-cantidad-note"
             />
-            {!cantidadManual && cantidadNum > 0 && (
+            {!cantidadManual && cantidadNum > 0 && !esDividendo && (
               <p id="tx-cantidad-note" className="text-[10px] text-bloomberg-accent/70 mt-0.5">
                 Calculado automáticamente
               </p>
@@ -679,27 +552,156 @@ export default function TransactionForm({
             )}
           </div>
 
-          {/* Comisión */}
-          <div>
-            <label htmlFor="tx-comision" className="block text-xs text-bloomberg-text-muted mb-1">
-              Comisión
-            </label>
-            <input
-              id="tx-comision"
-              name="comision"
-              type="number"
-              step="0.01"
-              min="0"
-              value={form.comision}
-              onChange={handleChange}
-              placeholder="0.00"
-              className={inputClasses('comision')}
-              aria-invalid={!!erroresValidacion.comision}
-            />
-            {erroresValidacion.comision && (
-              <p className="text-xs text-bloomberg-red mt-1" role="alert">{erroresValidacion.comision}</p>
-            )}
-          </div>
+          {/* ─── Asignación section (full-width, only for compra mode) ── */}
+          {!esDividendo && (
+            <div className="col-span-2 my-1">
+              {/* Section divider */}
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-[10px] uppercase tracking-wider text-bloomberg-text-muted font-medium">
+                  Asignación
+                </span>
+                <div className="h-px flex-1 bg-white/10" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Monto a invertir — slider + input */}
+                <div>
+                  <label htmlFor="tx-monto" className="block text-xs text-bloomberg-text-muted mb-1">
+                    Monto a invertir
+                  </label>
+                  <input
+                    id="tx-monto"
+                    type="number"
+                    step="100"
+                    min="0"
+                    value={montoInvertir}
+                    onChange={(e) => handleMontoChange(e.target.value)}
+                    placeholder="0.00"
+                    className={`${inputClasses('_monto')} mb-1.5`}
+                    aria-describedby="tx-monto-desc"
+                  />
+                  <input
+                    type="range"
+                    min="0"
+                    max={capitalTotal > 0 ? capitalDisponible : montoSliderMax}
+                    step="100"
+                    value={parseFloat(montoInvertir) || 0}
+                    onChange={(e) => handleMontoChange(e.target.value)}
+                    className="w-full h-1.5 rounded-full appearance-none cursor-pointer
+                               bg-white/10 accent-bloomberg-accent"
+                    aria-label="Slider monto a invertir"
+                  />
+                  <div className="flex justify-between text-[10px] text-bloomberg-text-muted mt-0.5">
+                    <span>$0</span>
+                    <span>{formatMoneda(capitalTotal > 0 ? capitalDisponible : montoSliderMax, form.moneda)}</span>
+                  </div>
+                </div>
+
+                {/* Porcentaje de cartera — slider + input (only meaningful with capitalTotal) */}
+                <div>
+                  <label htmlFor="tx-pct" className="block text-xs text-bloomberg-text-muted mb-1">
+                    {capitalTotal > 0 ? '% de cartera' : '% del monto'}
+                  </label>
+                  {capitalTotal > 0 ? (
+                    <>
+                      <input
+                        id="tx-pct"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                        value={porcentaje}
+                        onChange={(e) => handlePorcentajeChange(e.target.value)}
+                        placeholder="0.0"
+                        className={`${inputClasses('_pct')} mb-1.5`}
+                      />
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        value={parseFloat(porcentaje) || 0}
+                        onChange={(e) => handlePorcentajeChange(e.target.value)}
+                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer
+                                   bg-white/10 accent-bloomberg-accent"
+                        aria-label="Slider porcentaje de cartera"
+                      />
+                      <div className="flex justify-between text-[10px] text-bloomberg-text-muted mt-0.5">
+                        <span>0%</span>
+                        <span>100%</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center h-[38px] px-3 rounded-lg bg-bloomberg-bg border border-white/10">
+                      <span className="text-xs text-bloomberg-text-muted">
+                        {montoInvertir && precioNum > 0
+                          ? `${((cantidadNum * precioNum) / (parseFloat(montoInvertir) || 1) * 100).toFixed(1)}% utilizado`
+                          : 'Ingresa monto y precio'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Calculated quantity display */}
+              {precioNum > 0 && cantidadNum > 0 && (
+                <div className="mt-3 px-3 py-2.5 rounded-lg bg-bloomberg-accent/5 border border-bloomberg-accent/20">
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <span className="text-lg font-bold text-bloomberg-accent">
+                        {formatNumero(cantidadNum, 0)}
+                      </span>
+                      <span className="text-sm text-bloomberg-text-muted ml-1.5">
+                        títulos de <span className="text-bloomberg-text font-medium">{tickerDisplay}</span>
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs text-bloomberg-text-muted">Costo total: </span>
+                      <span className="text-sm font-medium text-bloomberg-text">
+                        {formatMoneda(costoTotal, form.moneda)}
+                      </span>
+                    </div>
+                  </div>
+                  {precioNum > 0 && (
+                    <p className="text-[10px] text-bloomberg-text-muted mt-1" id="tx-monto-desc">
+                      a {formatMoneda(precioNum, form.moneda)} por título
+                      {montoInvertir && costoTotal < parseFloat(montoInvertir)
+                        ? ` · Sobrante: ${formatMoneda(parseFloat(montoInvertir) - costoTotal, form.moneda)}`
+                        : ''}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Divider bottom */}
+              <div className="h-px bg-white/10 mt-3" />
+            </div>
+          )}
+
+          {/* Comisión — only for compra mode */}
+          {!esDividendo && (
+            <div>
+              <label htmlFor="tx-comision" className="block text-xs text-bloomberg-text-muted mb-1">
+                Comisión
+              </label>
+              <input
+                id="tx-comision"
+                name="comision"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.comision}
+                onChange={handleChange}
+                placeholder="0.00"
+                className={inputClasses('comision')}
+                aria-invalid={!!erroresValidacion.comision}
+              />
+              {erroresValidacion.comision && (
+                <p className="text-xs text-bloomberg-red mt-1" role="alert">{erroresValidacion.comision}</p>
+              )}
+            </div>
+          )}
 
           {/* Moneda */}
           <div>
@@ -735,8 +737,41 @@ export default function TransactionForm({
           </div>
         </div>
 
+        {/* ─── Dividendo toggle ───────────────────────────────────── */}
+        <div className="mt-4 mb-2">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={esDividendo}
+              onChange={(e) => setEsDividendo(e.target.checked)}
+              className="w-4 h-4 rounded border-white/20 bg-bloomberg-bg text-bloomberg-accent
+                         focus:ring-bloomberg-accent focus:ring-offset-0 cursor-pointer"
+            />
+            <span className="text-sm text-bloomberg-text-muted">
+              ☐ Registrar dividendo
+            </span>
+          </label>
+          {esDividendo && (
+            <p className="text-[10px] text-bloomberg-text-muted mt-1 ml-6">
+              Se registrará como dividendo: monto por acción × acciones con derecho
+            </p>
+          )}
+        </div>
+
+        {/* Auto-pending warning */}
+        {autoPendiente && (
+          <div
+            className="mb-4 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30
+                        text-sm text-yellow-400 flex items-start gap-2"
+            role="alert"
+          >
+            <span className="shrink-0">⚠</span>
+            <span>Capital insuficiente — se registrará como pendiente</span>
+          </div>
+        )}
+
         {/* Botones */}
-        <div className="flex justify-end gap-3 mt-6">
+        <div className="flex justify-end gap-3 mt-4">
           <button
             type="button"
             onClick={handleCerrar}
@@ -751,9 +786,9 @@ export default function TransactionForm({
             className="px-4 py-2 text-sm rounded-lg bg-bloomberg-accent text-white
                        hover:bg-bloomberg-accent/80 disabled:opacity-50
                        disabled:cursor-not-allowed transition-colors"
-            aria-label="Registrar transacción"
+            aria-label="Agregar activo"
           >
-            {loading ? 'Registrando...' : 'Registrar'}
+            {loading ? 'Agregando...' : 'Agregar'}
           </button>
         </div>
       </form>

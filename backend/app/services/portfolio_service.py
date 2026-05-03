@@ -123,7 +123,18 @@ def actualizar_portafolio(
         portafolio.descripcion = descripcion
 
     if capital_inicial is not None:
-        portafolio.capital_inicial = _dec(capital_inicial)
+        nuevo_capital = _dec(capital_inicial)
+        # Validar que el nuevo capital no sea menor al valor invertido
+        posiciones = portafolio.posiciones.all()
+        valor_invertido = sum(
+            _dec(pos.costo_total) for pos in posiciones if _dec(pos.cantidad) > 0
+        )
+        if nuevo_capital < valor_invertido:
+            raise ValueError(
+                f"El capital inicial no puede ser menor al valor invertido "
+                f"(${float(valor_invertido):,.2f})"
+            )
+        portafolio.capital_inicial = nuevo_capital
 
     try:
         db.session.commit()
@@ -263,6 +274,25 @@ def registrar_transaccion(
     ).first()
 
     ganancia_perdida = None
+
+    # Auto-pending: si capital insuficiente para compra, marcar como pendiente
+    if tipo == "compra":
+        portafolio = _get_portafolio(portafolio_id, user_id)
+        cap_inicial = _dec(portafolio.capital_inicial)
+        if cap_inicial > 0:
+            posiciones_all = portafolio.posiciones.all()
+            invertido = sum(
+                _dec(p.costo_total) for p in posiciones_all if _dec(p.cantidad) > 0
+            )
+            disponible = cap_inicial - invertido
+            costo_tx = precio_unitario * cantidad
+            if costo_tx > disponible:
+                estado = "pendiente"
+                notas_prefix = "Marcada como pendiente: capital insuficiente"
+                if notas:
+                    notas = f"{notas_prefix}. {notas}"
+                else:
+                    notas = notas_prefix
 
     if tipo == "compra":
         posicion, ganancia_perdida = _procesar_compra(

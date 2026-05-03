@@ -151,12 +151,12 @@ export default function PortfolioDetail({
             </button>
           )}
 
-          {/* Registrar Transacción */}
+          {/* Agregar Activo */}
           <button
             onClick={onRegistrarTransaccion}
             className="px-3 py-1.5 text-xs rounded-lg bg-bloomberg-green/20 text-bloomberg-green
                        hover:bg-bloomberg-green/30 transition-colors flex items-center gap-1.5"
-            aria-label="Registrar nueva transacción"
+            aria-label="Agregar nuevo activo"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -168,7 +168,7 @@ export default function PortfolioDetail({
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Registrar Transacción
+            Agregar Activo
           </button>
 
           {/* Editar */}

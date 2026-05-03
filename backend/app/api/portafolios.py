@@ -233,6 +233,7 @@ def registrar_transaccion(portafolio_id: int):
             comision=data.get("comision", 0),
             moneda=data.get("moneda", "USD"),
             notas=data.get("notas"),
+            estado=data.get("estado", "confirmada"),
         )
     except ValueError as e:
         msg = str(e)

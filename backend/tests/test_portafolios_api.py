@@ -521,3 +521,76 @@ class TestObtenerHistorico:
         assert len(data["fechas"]) == len(data["valores"])
         # Todos los valores deben ser positivos (10 acciones × precio > 0)
         assert all(v > 0 for v in data["valores"])
+
+
+# ── PUT /api/portafolios/<id> — capital_inicial validation ───────
+
+class TestCapitalInicialValidacionAPI:
+    """Tests para validación de capital_inicial al editar portafolio via API."""
+
+    def test_capital_menor_a_invertido_400(self, client):
+        """Reducir capital por debajo del invertido retorna 400."""
+        r = client.post("/api/portafolios", json={
+            "nombre": "Cap Val",
+            "capital_inicial": 100000,
+        })
+        pid = r.get_json()["id"]
+        _compra(client, pid, "AAPL", 150, 100)  # costo = 15000
+        resp = client.put(f"/api/portafolios/{pid}", json={
+            "capital_inicial": 10000,
+        })
+        assert resp.status_code == 400
+        assert "no puede ser menor" in resp.get_json()["error"]
+
+    def test_capital_igual_a_invertido_200(self, client):
+        """Capital igual al invertido es válido."""
+        r = client.post("/api/portafolios", json={
+            "nombre": "Cap Igual",
+            "capital_inicial": 100000,
+        })
+        pid = r.get_json()["id"]
+        _compra(client, pid, "AAPL", 150, 100)  # costo = 15000
+        resp = client.put(f"/api/portafolios/{pid}", json={
+            "capital_inicial": 15000,
+        })
+        assert resp.status_code == 200
+        assert resp.get_json()["capital_inicial"] == 15000.0
+
+
+# ── POST /api/portafolios/<id>/transacciones — auto-pending ─────
+
+class TestAutoPendienteAPI:
+    """Tests para auto-pending cuando capital insuficiente via API."""
+
+    def test_compra_excede_capital_pendiente(self, client):
+        """Compra que excede capital se marca como pendiente."""
+        r = client.post("/api/portafolios", json={
+            "nombre": "Auto Pend API",
+            "capital_inicial": 10000,
+        })
+        pid = r.get_json()["id"]
+        resp = _compra(client, pid, "AAPL", 150, 100)  # costo = 15000 > 10000
+        assert resp.status_code == 201
+        data = resp.get_json()
+        assert data["estado"] == "pendiente"
+
+    def test_compra_dentro_capital_confirmada(self, client):
+        """Compra dentro del capital se confirma."""
+        r = client.post("/api/portafolios", json={
+            "nombre": "Dentro Cap API",
+            "capital_inicial": 100000,
+        })
+        pid = r.get_json()["id"]
+        resp = _compra(client, pid, "AAPL", 150, 10)  # costo = 1500 < 100000
+        assert resp.status_code == 201
+        data = resp.get_json()
+        assert data["estado"] == "confirmada"
+
+    def test_compra_sin_capital_no_aplica(self, client):
+        """Sin capital_inicial, no se aplica auto-pending."""
+        r = _crear_portafolio(client, "Sin Cap API")
+        pid = r.get_json()["id"]
+        resp = _compra(client, pid, "AAPL", 150, 1000)
+        assert resp.status_code == 201
+        data = resp.get_json()
+        assert data["estado"] == "confirmada"

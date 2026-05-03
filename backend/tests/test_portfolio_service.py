@@ -355,6 +355,110 @@ class TestMonedaPortafolio:
         assert port["valor_total"] == pytest.approx(1200.0)  # 60 * 20
 
 
+# ── Validación de capital_inicial al editar ──────────────────────
+
+class TestCapitalInicialValidacion:
+    """Tests para validación de capital_inicial en actualizar_portafolio."""
+
+    def test_capital_menor_a_invertido_rechazado(self, db):
+        """No se puede reducir capital_inicial por debajo del valor invertido."""
+        p = svc.crear_portafolio(USER_ID, "Capital Test", capital_inicial=100000)
+        _compra(db, p["id"], "AAPL", 150, 100)  # costo = 15000
+        with pytest.raises(ValueError, match="no puede ser menor al valor invertido"):
+            svc.actualizar_portafolio(p["id"], USER_ID, capital_inicial=10000)
+
+    def test_capital_igual_a_invertido_permitido(self, db):
+        """Capital_inicial igual al valor invertido es válido."""
+        p = svc.crear_portafolio(USER_ID, "Capital Igual", capital_inicial=100000)
+        _compra(db, p["id"], "AAPL", 150, 100)  # costo = 15000
+        result = svc.actualizar_portafolio(p["id"], USER_ID, capital_inicial=15000)
+        assert result["capital_inicial"] == 15000.0
+
+    def test_capital_mayor_a_invertido_permitido(self, db):
+        """Capital_inicial mayor al valor invertido es válido."""
+        p = svc.crear_portafolio(USER_ID, "Capital Mayor", capital_inicial=50000)
+        _compra(db, p["id"], "AAPL", 150, 100)  # costo = 15000
+        result = svc.actualizar_portafolio(p["id"], USER_ID, capital_inicial=200000)
+        assert result["capital_inicial"] == 200000.0
+
+    def test_capital_sin_posiciones_permitido(self, db):
+        """Sin posiciones, cualquier capital_inicial es válido."""
+        p = svc.crear_portafolio(USER_ID, "Sin Pos", capital_inicial=100000)
+        result = svc.actualizar_portafolio(p["id"], USER_ID, capital_inicial=0)
+        assert result["capital_inicial"] == 0.0
+
+
+# ── Auto-pending por capital insuficiente ────────────────────────
+
+class TestAutoPendienteCapital:
+    """Tests para auto-pending cuando el capital es insuficiente."""
+
+    def test_compra_excede_capital_marca_pendiente(self, db):
+        """Compra que excede capital disponible se marca como pendiente."""
+        p = svc.crear_portafolio(USER_ID, "Auto Pend", capital_inicial=10000)
+        tx = svc.registrar_transaccion(
+            p["id"], USER_ID, "AAPL", "compra", date(2024, 1, 15),
+            150, 100, 0, "USD",  # costo = 15000 > 10000
+        )
+        assert tx["estado"] == "pendiente"
+        assert "capital insuficiente" in tx["notas"].lower()
+
+    def test_compra_dentro_de_capital_confirmada(self, db):
+        """Compra dentro del capital disponible se confirma normalmente."""
+        p = svc.crear_portafolio(USER_ID, "Dentro Cap", capital_inicial=100000)
+        tx = svc.registrar_transaccion(
+            p["id"], USER_ID, "AAPL", "compra", date(2024, 1, 15),
+            150, 10, 0, "USD",  # costo = 1500 < 100000
+        )
+        assert tx["estado"] == "confirmada"
+
+    def test_compra_sin_capital_inicial_no_aplica(self, db):
+        """Sin capital_inicial (0), no se aplica auto-pending."""
+        p = svc.crear_portafolio(USER_ID, "Sin Cap", capital_inicial=0)
+        tx = svc.registrar_transaccion(
+            p["id"], USER_ID, "AAPL", "compra", date(2024, 1, 15),
+            150, 1000, 0, "USD",  # costo = 150000 pero capital = 0
+        )
+        assert tx["estado"] == "confirmada"
+
+    def test_compra_con_capital_parcialmente_invertido(self, db):
+        """Compra que excede capital disponible (no total) se marca pendiente."""
+        p = svc.crear_portafolio(USER_ID, "Parcial", capital_inicial=20000)
+        # Primera compra: 15000 invertido, 5000 disponible
+        svc.registrar_transaccion(
+            p["id"], USER_ID, "AAPL", "compra", date(2024, 1, 15),
+            150, 100, 0, "USD",
+        )
+        # Segunda compra: 10000 > 5000 disponible
+        tx2 = svc.registrar_transaccion(
+            p["id"], USER_ID, "MSFT", "compra", date(2024, 1, 16),
+            100, 100, 0, "USD",
+        )
+        assert tx2["estado"] == "pendiente"
+
+    def test_dividendo_no_aplica_auto_pending(self, db):
+        """Dividendos no se ven afectados por auto-pending."""
+        p = svc.crear_portafolio(USER_ID, "Div No Pend", capital_inicial=100)
+        _compra(db, p["id"], "AAPL", 150, 10)
+        tx = svc.registrar_transaccion(
+            p["id"], USER_ID, "AAPL", "dividendo", date(2024, 3, 15),
+            5.0, 10, 0, "USD",
+        )
+        assert tx["estado"] == "confirmada"
+
+    def test_auto_pending_preserva_notas_existentes(self, db):
+        """Auto-pending agrega nota sin perder notas del usuario."""
+        p = svc.crear_portafolio(USER_ID, "Notas Pend", capital_inicial=1000)
+        tx = svc.registrar_transaccion(
+            p["id"], USER_ID, "AAPL", "compra", date(2024, 1, 15),
+            150, 100, 0, "USD",
+            notas="Mi nota personal",
+        )
+        assert tx["estado"] == "pendiente"
+        assert "capital insuficiente" in tx["notas"].lower()
+        assert "Mi nota personal" in tx["notas"]
+
+
 # ── Task 3.1: Precios nulos en vista_consolidada ─────────────────
 
 class TestVistaConsolidadaPreciosNulos:
