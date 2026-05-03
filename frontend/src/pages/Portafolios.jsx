@@ -644,6 +644,9 @@ export default function Portafolios() {
         onSubmit={handleRegistrarTransaccion}
         loading={loadingLocal}
         error={errorLocal}
+        valorInvertido={
+          posicionesActivas.reduce((sum, p) => sum + (p.costo_total || 0), 0)
+        }
       />
     </div>
   );
