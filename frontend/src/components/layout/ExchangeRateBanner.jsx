@@ -145,12 +145,12 @@ export default function ExchangeRateBanner() {
       aria-label={`Tipo de cambio USD/MXN: ${precioStr}, cambio del día: ${cambioAbsStr} (${cambioPctStr})`}
     >
       {/* Par de divisas */}
-      <span className="text-[11px] font-light tracking-[0.15em] text-bloomberg-accent">
+      <span className="text-xs font-medium tracking-wide text-bloomberg-accent">
         USD/MXN
       </span>
 
       {/* Precio */}
-      <span className="text-[11px] font-mono font-light text-bloomberg-text">
+      <span className="text-xs font-mono font-medium text-bloomberg-text">
         {precioStr}
       </span>
 
@@ -174,7 +174,7 @@ export default function ExchangeRateBanner() {
       </span>
 
       {/* Última actualización */}
-      <span className="text-[10px] text-bloomberg-text-muted">
+      <span className="text-[11px] text-bloomberg-text-muted">
         {ultimaAct}
       </span>
 
