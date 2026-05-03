@@ -152,6 +152,7 @@ export default function PortfolioDetail({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al aplicar');
       setAplicadoMsg(`\u2713 ${data.mensaje}`);
+      onTransaccionActualizada?.();
     } catch (err) {
       setAplicadoMsg(`Error: ${err.message}`);
     } finally {
