@@ -21,10 +21,12 @@
   h3 { font-size: 1.5rem; }
 
   /* Scale up small text globally */
-  .text-xs  { font-size: 0.8rem !important; }
-  .text-sm  { font-size: 0.95rem !important; }
+  .text-xs  { font-size: 0.85rem !important; line-height: 1.4 !important; }
+  .text-sm  { font-size: 1rem !important; }
   .text-base { font-size: 1.1rem !important; }
-  .text-lg  { font-size: 1.25rem !important; }
+  .text-lg  { font-size: 1.3rem !important; }
+  .text-xl  { font-size: 1.5rem !important; }
+  .text-2xl { font-size: 1.75rem !important; }
 
   /* Scale up emoji/icon spans */
   span[aria-hidden="true"] { font-size: 1.3em; }
@@ -36,8 +38,8 @@
   .uppercase { letter-spacing: 0.08em; }
 
   /* Override tiny custom font sizes globally */
-  [class*="text-[10px]"] { font-size: 0.8rem !important; }
-  [class*="text-[11px]"] { font-size: 0.85rem !important; }
+  [class*="text-[10px]"] { font-size: 0.85rem !important; }
+  [class*="text-[11px]"] { font-size: 0.9rem !important; }
 
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: #0a0e0c; }
