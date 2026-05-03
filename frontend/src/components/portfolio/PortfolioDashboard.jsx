@@ -5,7 +5,7 @@
  * Institución: Tecnológico de Monterrey
  * Fecha de creación: 2026-05-03
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import useStore from '../../store';
 import Plot from 'react-plotly.js';
 import Spinner from '../common/Spinner';
@@ -20,33 +20,39 @@ const COLORS = ['#0ea5e9','#06b6d4','#14b8a6','#10b981','#059669','#0284c7','#22
 export default function PortfolioDashboard({ portafolioId, posiciones }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { dashboardCache, setDashboardCache } = useStore();
+  const fetchingRef = useRef(false);
 
-  // Hash de posiciones activas para detectar cambios
-  const posHash = useMemo(() => {
-    const activas = (posiciones || []).filter(p => p.cantidad > 0 && p.precio_actual > 0);
-    return activas.map(p => `${p.ticker}:${p.cantidad}`).sort().join('|');
-  }, [posiciones]);
+  const dashboardCache = useStore((s) => s.dashboardCache);
+  const dashboardDirty = useStore((s) => s.dashboardDirty);
+  const setDashboardCache = useStore((s) => s.setDashboardCache);
 
-  const cached = dashboardCache[portafolioId];
-  const data = cached?.posHash === posHash ? cached.data : null;
+  const data = dashboardCache[portafolioId] ?? null;
+  const dirty = dashboardDirty[portafolioId] ?? false;
+  const needsFetch = !data || dirty;
 
   useEffect(() => {
     if (!portafolioId) return;
     const activas = (posiciones || []).filter(p => p.cantidad > 0 && p.precio_actual > 0);
     if (activas.length < 2) return;
-    if (data) return; // ya cacheado con mismas posiciones
+    if (!needsFetch) return;          // caché válido, no hacer nada
+    if (fetchingRef.current) return;  // ya hay un fetch en curso
 
+    fetchingRef.current = true;
     let cancelled = false;
     setLoading(true);
     setError(null);
+
     fetch(`/api/portafolios/${portafolioId}/dashboard`)
       .then(r => { if (!r.ok) throw new Error('Error al cargar dashboard'); return r.json(); })
-      .then(d => { setDashboardCache(portafolioId, d, posHash); })
+      .then(d => { setDashboardCache(portafolioId, d); })
       .catch(e => { if (!cancelled) setError(e.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => {
+        fetchingRef.current = false;
+        if (!cancelled) setLoading(false);
+      });
+
     return () => { cancelled = true; };
-  }, [portafolioId, posHash, data]);
+  }, [portafolioId, needsFetch]);
 
   const activas = (posiciones || []).filter(p => p.cantidad > 0 && p.precio_actual > 0);
   if (activas.length < 2) {
@@ -61,7 +67,7 @@ export default function PortfolioDashboard({ portafolioId, posiciones }) {
 
   if (loading) return <Spinner mensaje="Calculando métricas del portafolio..." size="sm" />;
   if (error) return <p className="text-sm text-bloomberg-red py-4">{error}</p>;
-  if (!data) return null;
+  if (!data) return <Spinner mensaje="Calculando métricas del portafolio..." size="sm" />;
 
   const { metricas, correlacion, risk_contrib, historico, resumen_tecnico, tickers, twr } = data;
 

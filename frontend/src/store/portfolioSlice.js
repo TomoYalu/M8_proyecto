@@ -12,7 +12,8 @@ export const createPortfolioSlice = (set, get) => ({
   posiciones: {},        // { portafolio_id: [posicion, ...] }
   transacciones: {},     // { portafolio_id: { items, total, pagina, paginas } }
   consolidado: null,
-  dashboardCache: {},   // { portafolio_id: { data, posHash } }
+  dashboardCache: {},   // { portafolio_id: data }
+  dashboardDirty: {},   // { portafolio_id: true } — indica que hay cambios pendientes
 
   // ─── Portafolios CRUD ─────────────────────────────────────────
 
@@ -47,11 +48,17 @@ export const createPortfolioSlice = (set, get) => ({
       delete nuevasPosiciones[id];
       const nuevasTx = { ...state.transacciones };
       delete nuevasTx[id];
+      const nuevoCache = { ...state.dashboardCache };
+      delete nuevoCache[id];
+      const nuevoDirty = { ...state.dashboardDirty };
+      delete nuevoDirty[id];
       return {
         portafolios: nuevos,
         portafolioActivo: nuevoActivo,
         posiciones: nuevasPosiciones,
         transacciones: nuevasTx,
+        dashboardCache: nuevoCache,
+        dashboardDirty: nuevoDirty,
       };
     });
     return data;
@@ -112,8 +119,8 @@ export const createPortfolioSlice = (set, get) => ({
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al registrar transacción');
     // Refrescar posiciones y transacciones tras registrar
-    const { fetchPosiciones, fetchTransacciones, invalidateDashboardCache } = get();
-    invalidateDashboardCache(id);
+    const { fetchPosiciones, fetchTransacciones, markDashboardDirty } = get();
+    markDashboardDirty(id);
     await Promise.all([fetchPosiciones(id), fetchTransacciones(id)]);
     return data;
   },
@@ -144,15 +151,14 @@ export const createPortfolioSlice = (set, get) => ({
 
   // ─── Selección ────────────────────────────────────────────────
 
-  setDashboardCache: (id, data, posHash) => set((state) => ({
-    dashboardCache: { ...state.dashboardCache, [id]: { data, posHash } },
+  setDashboardCache: (id, data) => set((state) => ({
+    dashboardCache: { ...state.dashboardCache, [id]: data },
+    dashboardDirty: { ...state.dashboardDirty, [id]: false },
   })),
 
-  invalidateDashboardCache: (id) => set((state) => {
-    const c = { ...state.dashboardCache };
-    delete c[id];
-    return { dashboardCache: c };
-  }),
+  markDashboardDirty: (id) => set((state) => ({
+    dashboardDirty: { ...state.dashboardDirty, [id]: true },
+  })),
 
   setPortafolioActivo: (id) => set({ portafolioActivo: id }),
 });
