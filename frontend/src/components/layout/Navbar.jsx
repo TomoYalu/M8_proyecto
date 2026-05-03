@@ -96,6 +96,7 @@ export default function Navbar() {
     '/alertas': 'Alertas',
     '/fiscal': 'Módulo Fiscal',
     '/dashboard': 'Dashboard',
+    '/dev-tests': 'Dev Tests',
   };
   const titulo = titulos[pathname] || 'Lakshmi Q2';
 

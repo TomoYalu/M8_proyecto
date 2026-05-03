@@ -23,6 +23,7 @@ import Wizard from './pages/Wizard';
 import Fiscal from './pages/Fiscal';
 import Dashboard from './pages/Dashboard';
 import Busqueda from './pages/Busqueda';
+import DevTests from './pages/DevTests';
 
 // ─── App (Layout + Routes) ──────────────────────────────────────
 
@@ -62,6 +63,7 @@ export default function App() {
             <Route path="/busqueda"    element={<Busqueda />} />
             <Route path="/alertas"     element={<Alertas />} />
             <Route path="/fiscal"      element={<Fiscal />} />
+            <Route path="/dev-tests"   element={<DevTests />} />
           </Routes>
         </main>
       </div>

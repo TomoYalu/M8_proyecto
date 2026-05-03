@@ -14,6 +14,7 @@ const navItems = [
   { to: '/busqueda',     label: 'Búsqueda de Activos',  icon: '🔍' },
   { to: '/analisis',     label: 'Análisis Técnico',     icon: '📈' },
   { to: '/noticias',     label: 'Noticias',             icon: '📰' },
+  { to: '/dev-tests',    label: 'Dev Tests',           icon: '🧪' },
   // TODO: habilitar cuando estén listos
   // { to: '/dashboard',    label: 'Dashboard',            icon: '📊' },
   // { to: '/alertas',      label: 'Alertas',              icon: '🔔' },
