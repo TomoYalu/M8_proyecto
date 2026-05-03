@@ -2,14 +2,15 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 const navItems = [
-  { to: '/dashboard',    label: 'Dashboard',            icon: '📊' },
   { to: '/portafolios',  label: 'Portafolios',          icon: '💼' },
   { to: '/wizard',       label: 'Portafolio Automático', icon: '⚡' },
   { to: '/busqueda',     label: 'Búsqueda de Activos',  icon: '🔍' },
   { to: '/analisis',     label: 'Análisis Técnico',     icon: '📈' },
   { to: '/noticias',     label: 'Noticias',             icon: '📰' },
-  { to: '/alertas',      label: 'Alertas',              icon: '🔔' },
-  { to: '/fiscal',       label: 'Fiscal',               icon: '🧾' },
+  // TODO: habilitar cuando estén listos
+  // { to: '/dashboard',    label: 'Dashboard',            icon: '📊' },
+  // { to: '/alertas',      label: 'Alertas',              icon: '🔔' },
+  // { to: '/fiscal',       label: 'Fiscal',               icon: '🧾' },
 ];
 
 export default function Sidebar() {

@@ -130,6 +130,9 @@ export default function Analisis() {
         )}
       </div>
 
+      {/* Pool de tickers de portafolios */}
+      <PortfolioTickerPool onSelect={handleTickerSelect} tickerActivo={tickerActivo} />
+
       {isLoading && !displayData && <Spinner mensaje="Calculando indicadores técnicos..." />}
 
       {error && !isLoading && (
@@ -186,6 +189,71 @@ export default function Analisis() {
               <PatternTable datos={displayData} />
             </LoadingOverlay>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Pool de tickers de portafolios ─────────────────────────────
+function PortfolioTickerPool({ onSelect, tickerActivo }) {
+  const [portafolios, setPortafolios] = useState([]);
+  const [expanded, setExpanded] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/portafolios')
+      .then(r => r.ok ? r.json() : [])
+      .then(async (list) => {
+        const result = [];
+        for (const p of list) {
+          try {
+            const r = await fetch(`/api/portafolios/${p.id}/posiciones`);
+            if (!r.ok) continue;
+            const pos = await r.json();
+            const tickers = pos.filter(x => x.cantidad > 0).map(x => x.ticker);
+            if (tickers.length > 0) result.push({ nombre: p.nombre, tickers });
+          } catch {}
+        }
+        setPortafolios(result);
+      })
+      .catch(() => {});
+  }, []);
+
+  if (portafolios.length === 0) return null;
+
+  return (
+    <div className="bg-bloomberg-bg/30 rounded-lg border border-white/5 p-3">
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="flex items-center gap-2 w-full text-left"
+      >
+        <span className="text-xs font-medium text-bloomberg-text-muted uppercase tracking-wider">
+          Mis Portafolios
+        </span>
+        <span className="text-[10px] text-bloomberg-text-muted">{expanded ? '▾' : '▸'}</span>
+      </button>
+      {expanded && (
+        <div className="mt-2 space-y-2">
+          {portafolios.map(p => (
+            <div key={p.nombre}>
+              <p className="text-[10px] text-bloomberg-text-muted mb-1">{p.nombre}</p>
+              <div className="flex flex-wrap gap-1">
+                {p.tickers.map(t => (
+                  <button
+                    key={t}
+                    onClick={() => onSelect(t)}
+                    className={`px-2 py-1 text-xs rounded-md border transition-colors ${
+                      tickerActivo === t
+                        ? 'bg-bloomberg-accent/20 border-bloomberg-accent/40 text-bloomberg-accent'
+                        : 'bg-white/5 border-white/10 text-bloomberg-text-muted hover:bg-white/10 hover:text-bloomberg-text'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

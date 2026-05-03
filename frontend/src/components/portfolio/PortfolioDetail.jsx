@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Plot from 'react-plotly.js';
 import PositionTable from './PositionTable';
-import PortfolioCharts from './PortfolioCharts';
 import TransactionHistory from './TransactionHistory';
+import PortfolioDashboard from './PortfolioDashboard';
 import TickerQuickSearch from './TickerQuickSearch';
 import Spinner from '../common/Spinner';
 import OptimizerResults from '../optimizer/OptimizerResults';
@@ -57,7 +57,7 @@ export default function PortfolioDetail({
   // ─── Análisis tab: optimizer cache (Req 9.5) ─────────────────
   const [analisisCache, setAnalisisCache] = useState(null);
   const [analisisExecuted, setAnalisisExecuted] = useState(false);
-  const [perfilAnalisis, setPerfilAnalisis] = useState('moderado');
+  const [perfilAnalisis, setPerfilAnalisis] = useState(null);
   const [aplicando, setAplicando] = useState(false);
   const [aplicadoMsg, setAplicadoMsg] = useState(null);
   const {
@@ -76,6 +76,7 @@ export default function PortfolioDetail({
   // Auto-execute optimization when Análisis tab is selected (Req 9.2)
   useEffect(() => {
     if (tabActiva !== 'analisis') return;
+    if (!perfilAnalisis) return;
     if (analisisCache) return;
     if (tickersActivos.length < 2) return;
     if (cargandoOptimizacion) return;
@@ -164,7 +165,8 @@ export default function PortfolioDetail({
   const tabs = [
     { id: 'posiciones', label: 'Posiciones' },
     { id: 'transacciones', label: 'Transacciones' },
-    { id: 'analisis', label: 'Análisis' },
+    { id: 'dashboard', label: 'Dashboard' },
+    { id: 'analisis', label: 'Optimizador' },
   ];
 
   return (
@@ -319,7 +321,7 @@ export default function PortfolioDetail({
               {tabActiva === 'posiciones' && (
                 <>
                   <PositionTable posiciones={posiciones} preciosEnVivo={preciosEnVivo} onEditarPosicion={onEditarPosicion} />
-                  <PortfolioCharts portafolioId={portafolio.id} posiciones={posiciones} moneda={portafolio.moneda} />
+                  <AllocationDonutSimple posiciones={posiciones} moneda={portafolio.moneda} />
                 </>
               )}
             </div>
@@ -342,6 +344,18 @@ export default function PortfolioDetail({
               )}
             </div>
 
+            {/* Panel Dashboard */}
+            <div
+              id="panel-dashboard"
+              role="tabpanel"
+              aria-labelledby="tab-dashboard"
+              hidden={tabActiva !== 'dashboard'}
+            >
+              {tabActiva === 'dashboard' && (
+                <PortfolioDashboard portafolioId={portafolio.id} posiciones={posiciones} />
+              )}
+            </div>
+
             {/* Panel Análisis (Req 9.1–9.5) */}
             <div
               id="panel-analisis"
@@ -351,6 +365,14 @@ export default function PortfolioDetail({
             >
               {tabActiva === 'analisis' && (
                 <>
+                {/* Instrucciones del optimizador */}
+                <div className="mb-4 p-4 rounded-lg bg-bloomberg-bg/30 border border-white/5">
+                  <h4 className="text-sm font-medium text-bloomberg-text mb-2">Optimizador Markowitz</h4>
+                  <p className="text-xs text-bloomberg-text-muted leading-relaxed">
+                    Selecciona un perfil de riesgo para ejecutar la optimización de tu portafolio.
+                    El optimizador calculará la frontera eficiente y sugerirá pesos óptimos para tus activos.
+                  </p>
+                </div>
                 {/* Selector de perfil */}
                 <div className="flex items-center gap-2 mb-4">
                   {Object.entries(PERFILES).map(([key, p]) => (
@@ -717,4 +739,46 @@ function AnalisisPanel({ tickersActivos, analisisData, cargando, error, portafol
     </div>
   );
 
+}
+
+
+// ─── Donut de asignación actual (Posiciones tab) ────────────────
+function AllocationDonutSimple({ posiciones, moneda = 'USD' }) {
+  const activas = (posiciones || []).filter(p => p.cantidad > 0 && p.precio_actual > 0);
+  if (activas.length === 0) return null;
+
+  const labels = activas.map(p => p.ticker);
+  const values = activas.map(p => p.valor_mercado || p.precio_actual * p.cantidad);
+  const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316'];
+
+  return (
+    <div className="mt-4 bg-bloomberg-bg/30 rounded-lg border border-white/5 p-4">
+      <h4 className="text-xs font-medium text-bloomberg-text-muted uppercase tracking-wider mb-2">
+        Distribución del Portafolio
+      </h4>
+      <Plot
+        data={[{
+          type: 'pie',
+          labels,
+          values,
+          hole: 0.55,
+          marker: { colors: COLORS.slice(0, labels.length) },
+          textinfo: 'label+percent',
+          textposition: 'outside',
+          hovertemplate: '%{label}<br>%{value:$,.2f}<br>%{percent}<extra></extra>',
+        }]}
+        layout={{
+          paper_bgcolor: 'transparent',
+          plot_bgcolor: 'transparent',
+          margin: { t: 10, r: 40, b: 10, l: 40 },
+          height: 280,
+          showlegend: false,
+          font: { color: '#d1d5db', size: 11 },
+        }}
+        config={{ responsive: true, displayModeBar: false }}
+        useResizeHandler
+        style={{ width: '100%', height: 280 }}
+      />
+    </div>
+  );
 }
