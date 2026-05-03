@@ -105,6 +105,7 @@ export default function Sidebar() {
         }`}
       >
         {collapsed ? 'v1' : 'v1.0.0'}
+        {!collapsed && <div className="text-[10px] text-bloomberg-text-muted/40 mt-1">L.Y.O.T.</div>}
       </div>
     </aside>
   );
