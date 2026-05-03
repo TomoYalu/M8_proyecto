@@ -48,12 +48,15 @@ export default function PortfolioDashboard({ portafolioId, posiciones }) {
   if (error) return <p className="text-sm text-bloomberg-red py-4">{error}</p>;
   if (!data) return null;
 
-  const { metricas, correlacion, risk_contrib, historico, resumen_tecnico, tickers } = data;
+  const { metricas, correlacion, risk_contrib, historico, resumen_tecnico, tickers, twr } = data;
 
   return (
     <div className="space-y-4">
       {/* Métricas de riesgo */}
-      <RiskMetrics metricas={metricas} valorTotal={data.valor_total} />
+      <RiskMetrics metricas={metricas} valorTotal={data.valor_total} twr={twr} />
+
+      {/* TWR: Rendimiento real */}
+      {twr && <TWRPanel twr={twr} />}
 
       {/* Row: Correlación + Contribución al riesgo */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -67,6 +70,12 @@ export default function PortfolioDashboard({ portafolioId, posiciones }) {
         <DrawdownPanel historico={historico} />
       </div>
 
+      {/* Proyección Monte Carlo */}
+      <MonteCarloPanel portafolioId={portafolioId} />
+
+      {/* Backtesting */}
+      <BacktestPanel portafolioId={portafolioId} />
+
       {/* Resumen técnico */}
       <TechnicalSummary resumen={resumen_tecnico} />
     </div>
@@ -74,7 +83,7 @@ export default function PortfolioDashboard({ portafolioId, posiciones }) {
 }
 
 // ─── Métricas de riesgo ─────────────────────────────────────────
-function RiskMetrics({ metricas, valorTotal }) {
+function RiskMetrics({ metricas, valorTotal, twr }) {
   const cards = [
     { label: 'Rendimiento Anual', value: `${metricas.rendimiento}%`, color: metricas.rendimiento >= 0 ? 'text-bloomberg-green' : 'text-bloomberg-red' },
     { label: 'Riesgo (Volatilidad)', value: `${metricas.riesgo}%` },
@@ -83,7 +92,7 @@ function RiskMetrics({ metricas, valorTotal }) {
     { label: 'Beta vs SPY', value: metricas.beta.toFixed(2) },
     { label: 'Max Drawdown', value: `${metricas.max_drawdown}%`, color: 'text-bloomberg-red' },
     { label: 'VaR 99% Diario', value: `$${metricas.var.diario_usd.toLocaleString()}`, sub: `${metricas.var.diario}%` },
-    { label: 'VaR 99% Anual', value: `$${metricas.var.anual_usd.toLocaleString()}`, sub: `${metricas.var.anual}%` },
+    ...(twr ? [{ label: 'TWR (Rend. Real)', value: `${twr.twr_total}%`, sub: `${twr.dias}d · anual: ${twr.twr_anualizado}%`, color: twr.twr_total >= 0 ? 'text-bloomberg-green' : 'text-bloomberg-red' }] : []),
   ];
 
   return (
@@ -241,6 +250,183 @@ function TechnicalSummary({ resumen }) {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────
+
+// ─── TWR (Time-Weighted Return) ─────────────────────────────────
+function TWRPanel({ twr }) {
+  return (
+    <Panel title={`Rendimiento Real (TWR): ${twr.twr_total}% en ${twr.dias} días · Anualizado: ${twr.twr_anualizado}%`}>
+      <Plot
+        data={[{ x: twr.fechas, y: twr.valores, type: 'scatter', mode: 'lines', line: { color: twr.twr_total >= 0 ? '#10b981' : '#ef4444', width: 2 }, fill: 'tozeroy', fillcolor: twr.twr_total >= 0 ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', hovertemplate: '%{x}<br>TWR: %{y:.2f}%<extra></extra>' }]}
+        layout={{ ...plotDefaults, height: 220, margin: { t: 10, r: 10, b: 30, l: 50 }, xaxis: { color: '#9ca3af', gridcolor: 'rgba(255,255,255,0.05)' }, yaxis: { color: '#9ca3af', gridcolor: 'rgba(255,255,255,0.05)', title: '%', zeroline: true, zerolinecolor: 'rgba(255,255,255,0.2)' } }}
+        config={plotConfig}
+        useResizeHandler
+        style={{ width: '100%', height: 220 }}
+      />
+      <p className="text-[10px] text-bloomberg-text-muted mt-2">
+        TWR elimina el efecto de depósitos y retiros, mostrando el rendimiento puro de la inversión.
+      </p>
+    </Panel>
+  );
+}
+
+// ─── Monte Carlo Projection ─────────────────────────────────────
+function MonteCarloPanel({ portafolioId }) {
+  const [data, setData] = useState(null);
+  const [horizonte, setHorizonte] = useState('1y');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!portafolioId) return;
+    let cancelled = false;
+    setLoading(true);
+    fetch(`/api/portafolios/${portafolioId}/proyeccion?horizonte=${horizonte}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled) setData(d); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [portafolioId, horizonte]);
+
+  const horizontes = [
+    { id: '6m', label: '6 Meses' },
+    { id: '1y', label: '1 Año' },
+    { id: '2y', label: '2 Años' },
+    { id: '5y', label: '5 Años' },
+  ];
+
+  return (
+    <Panel title="Proyección Monte Carlo">
+      <div className="flex gap-2 mb-3">
+        {horizontes.map(h => (
+          <button key={h.id} onClick={() => setHorizonte(h.id)}
+            className={`px-2 py-1 text-[10px] rounded transition-colors ${horizonte === h.id ? 'bg-bloomberg-accent/20 text-bloomberg-accent' : 'text-bloomberg-text-muted hover:text-bloomberg-text'}`}>
+            {h.label}
+          </button>
+        ))}
+      </div>
+      {loading ? (
+        <div className="h-[250px] flex items-center justify-center">
+          <div className="w-4 h-4 border-2 rounded-full border-bloomberg-accent border-t-transparent animate-spin" />
+        </div>
+      ) : data ? (
+        <>
+          <Plot
+            data={[
+              { x: data.fechas, y: data.p90, type: 'scatter', mode: 'lines', name: 'Optimista (p90)', line: { color: '#10b981', width: 1, dash: 'dot' } },
+              { x: data.fechas, y: data.p50, type: 'scatter', mode: 'lines', name: 'Mediana (p50)', line: { color: '#3b82f6', width: 2 } },
+              { x: data.fechas, y: data.p10, type: 'scatter', mode: 'lines', name: 'Pesimista (p10)', line: { color: '#ef4444', width: 1, dash: 'dot' }, fill: 'tonexty', fillcolor: 'rgba(59,130,246,0.06)' },
+            ]}
+            layout={{ ...plotDefaults, height: 250, showlegend: true, legend: { x: 0, y: 1, font: { size: 10, color: '#9ca3af' }, bgcolor: 'transparent' }, margin: { t: 10, r: 10, b: 30, l: 60 }, xaxis: { color: '#9ca3af', gridcolor: 'rgba(255,255,255,0.05)' }, yaxis: { color: '#9ca3af', gridcolor: 'rgba(255,255,255,0.05)', tickprefix: '$' } }}
+            config={plotConfig}
+            useResizeHandler
+            style={{ width: '100%', height: 250 }}
+          />
+          <div className="flex gap-4 mt-2 text-[10px] text-bloomberg-text-muted">
+            <span>Valor actual: ${data.valor_actual?.toLocaleString()}</span>
+            <span>Rend. anual: {data.rendimiento_anual?.toFixed(1)}%</span>
+            <span>Volatilidad: {data.volatilidad_anual?.toFixed(1)}%</span>
+          </div>
+        </>
+      ) : <p className="text-xs text-bloomberg-text-muted">Sin datos de proyección.</p>}
+    </Panel>
+  );
+}
+
+// ─── Backtesting ────────────────────────────────────────────────
+function BacktestPanel({ portafolioId }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [periodo, setPeriodo] = useState('3y');
+  const [rebalanceo, setRebalanceo] = useState('trimestral');
+
+  const ejecutar = () => {
+    setLoading(true);
+    fetch(`/api/portafolios/${portafolioId}/backtest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ periodo, rebalanceo }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setData(d))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  const periodos = [{ id: '1y', label: '1 Año' }, { id: '3y', label: '3 Años' }, { id: '5y', label: '5 Años' }];
+  const rebalanceos = [{ id: 'mensual', label: 'Mensual' }, { id: 'trimestral', label: 'Trimestral' }, { id: 'anual', label: 'Anual' }, { id: 'nunca', label: 'Sin rebalanceo' }];
+
+  return (
+    <Panel title="Backtesting — Simulación Histórica">
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-bloomberg-text-muted">Período:</span>
+          {periodos.map(p => (
+            <button key={p.id} onClick={() => setPeriodo(p.id)}
+              className={`px-2 py-1 text-[10px] rounded transition-colors ${periodo === p.id ? 'bg-bloomberg-accent/20 text-bloomberg-accent' : 'text-bloomberg-text-muted hover:text-bloomberg-text'}`}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-bloomberg-text-muted">Rebalanceo:</span>
+          {rebalanceos.map(r => (
+            <button key={r.id} onClick={() => setRebalanceo(r.id)}
+              className={`px-2 py-1 text-[10px] rounded transition-colors ${rebalanceo === r.id ? 'bg-bloomberg-accent/20 text-bloomberg-accent' : 'text-bloomberg-text-muted hover:text-bloomberg-text'}`}>
+              {r.label}
+            </button>
+          ))}
+        </div>
+        <button onClick={ejecutar} disabled={loading}
+          className="px-3 py-1.5 text-xs rounded-lg bg-bloomberg-accent text-white hover:bg-bloomberg-accent/80 disabled:opacity-50 transition-colors">
+          {loading ? 'Simulando...' : '▶ Ejecutar Backtest'}
+        </button>
+      </div>
+
+      {data && (
+        <>
+          {/* Métricas comparativas */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+            {[
+              { label: 'Valor Final', value: `$${data.metricas.valor_final.toLocaleString()}`, sub: `de $${data.inversion_inicial.toLocaleString()}` },
+              { label: 'Rendimiento Total', value: `${data.metricas.rendimiento_total}%`, color: data.metricas.rendimiento_total >= 0 ? 'text-bloomberg-green' : 'text-bloomberg-red' },
+              { label: 'Rend. Anual', value: `${data.metricas.rendimiento_anual}%`, sub: data.spy_metricas ? `SPY: ${data.spy_metricas.rendimiento_anual}%` : null },
+              { label: 'Max Drawdown', value: `${data.metricas.max_drawdown}%`, sub: data.spy_metricas ? `SPY: ${data.spy_metricas.max_drawdown}%` : null, color: 'text-bloomberg-red' },
+            ].map(c => (
+              <div key={c.label} className="bg-bloomberg-bg/50 rounded-lg px-2 py-1.5 border border-white/5">
+                <p className="text-[10px] uppercase tracking-wider text-bloomberg-text-muted">{c.label}</p>
+                <p className={`text-sm font-semibold ${c.color || 'text-bloomberg-text'}`}>{c.value}</p>
+                {c.sub && <p className="text-[10px] text-bloomberg-text-muted">{c.sub}</p>}
+              </div>
+            ))}
+          </div>
+
+          {/* Gráfica */}
+          <Plot
+            data={[
+              { x: data.fechas, y: data.valores, type: 'scatter', mode: 'lines', name: `Portafolio (${data.rebalanceo})`, line: { color: '#3b82f6', width: 2 } },
+              ...(data.spy ? [{ x: data.fechas, y: data.spy, type: 'scatter', mode: 'lines', name: 'SPY (benchmark)', line: { color: '#9ca3af', width: 1.5, dash: 'dot' } }] : []),
+            ]}
+            layout={{ ...plotDefaults, height: 280, showlegend: true, legend: { x: 0, y: 1, font: { size: 10, color: '#9ca3af' }, bgcolor: 'transparent' }, margin: { t: 10, r: 10, b: 30, l: 60 }, xaxis: { color: '#9ca3af', gridcolor: 'rgba(255,255,255,0.05)' }, yaxis: { color: '#9ca3af', gridcolor: 'rgba(255,255,255,0.05)', tickprefix: '$' } }}
+            config={plotConfig}
+            useResizeHandler
+            style={{ width: '100%', height: 280 }}
+          />
+          <p className="text-[10px] text-bloomberg-text-muted mt-2">
+            Simulación de $10,000 invertidos con pesos actuales y rebalanceo {data.rebalanceo}. No incluye costos de transacción ni impuestos.
+          </p>
+        </>
+      )}
+
+      {!data && !loading && (
+        <p className="text-xs text-bloomberg-text-muted py-4 text-center">
+          Haz clic en "Ejecutar Backtest" para simular cómo habría rendido tu portafolio con datos históricos.
+        </p>
+      )}
+    </Panel>
+  );
+}
+
+
 function Panel({ title, children }) {
   return (
     <div className="bg-bloomberg-bg/30 rounded-lg border border-white/5 p-4">

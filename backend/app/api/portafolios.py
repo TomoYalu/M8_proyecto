@@ -640,6 +640,103 @@ def dashboard_portafolio(portafolio_id: int):
         except Exception as e:
             resumen_tecnico.append({"ticker": ticker, "error": str(e)})
 
+    # TWR (Time-Weighted Return) — rendimiento real sin efecto de flujos
+    twr_data = None
+    try:
+        from ..models.portafolio import Transaccion
+        from datetime import timedelta
+        from collections import defaultdict
+
+        txs = (Transaccion.query
+               .filter_by(portafolio_id=portafolio_id)
+               .order_by(Transaccion.fecha.asc())
+               .all())
+
+        if txs:
+            hoy = datetime.date.today()
+            primera_fecha = txs[0].fecha if isinstance(txs[0].fecha, datetime.date) else txs[0].fecha.date()
+            dias_total = (hoy - primera_fecha).days
+
+            # Obtener precios diarios para todos los tickers
+            precios_diarios = {}
+            periodo_d = "1mo" if dias_total <= 30 else "3mo" if dias_total <= 90 else "1y" if dias_total <= 365 else "5y"
+            for ticker in tickers_ok:
+                try:
+                    df_d = yfinance_service.obtener_datos_historicos(ticker, periodo_d, "1d")
+                    precios_diarios[ticker] = {
+                        (idx.date() if hasattr(idx, 'date') else idx): float(row["Close"])
+                        for idx, row in df_d.iterrows()
+                    }
+                except Exception:
+                    pass
+
+            # Reconstruir posiciones y calcular TWR
+            posiciones_acc = defaultdict(float)
+            tx_idx = 0
+            twr_total = 1.0
+            prev_valor = None
+            twr_fechas = []
+            twr_valores = []
+
+            fecha_iter = primera_fecha
+            while fecha_iter <= hoy:
+                # Aplicar transacciones del día
+                flujo_dia = 0.0
+                while tx_idx < len(txs):
+                    tx = txs[tx_idx]
+                    tx_f = tx.fecha if isinstance(tx.fecha, datetime.date) else tx.fecha.date()
+                    if tx_f > fecha_iter:
+                        break
+                    tipo = tx.tipo.lower()
+                    cant = float(tx.cantidad)
+                    precio_tx = float(tx.precio_unitario)
+                    if tipo == "compra":
+                        posiciones_acc[tx.ticker] += cant
+                        flujo_dia += cant * precio_tx
+                    elif tipo == "venta":
+                        posiciones_acc[tx.ticker] -= cant
+                        flujo_dia -= cant * precio_tx
+                    tx_idx += 1
+
+                # Calcular valor del portafolio hoy
+                def _precio_dia(tk, f):
+                    pd_tk = precios_diarios.get(tk, {})
+                    for delta in range(8):
+                        p = pd_tk.get(f - timedelta(days=delta))
+                        if p: return p
+                    return None
+
+                valor_hoy = 0.0
+                tiene = False
+                for tk, cant in posiciones_acc.items():
+                    if cant <= 0: continue
+                    p = _precio_dia(tk, fecha_iter)
+                    if p:
+                        valor_hoy += cant * p
+                        tiene = True
+
+                if tiene and valor_hoy > 0:
+                    if prev_valor is not None and prev_valor > 0:
+                        # TWR: rendimiento del período = (V_end - flujo) / V_start
+                        r_periodo = (valor_hoy - flujo_dia) / prev_valor - 1
+                        twr_total *= (1 + r_periodo)
+                    prev_valor = valor_hoy
+                    twr_fechas.append(fecha_iter.isoformat())
+                    twr_valores.append(round((twr_total - 1) * 100, 2))
+
+                fecha_iter += timedelta(days=1)
+
+            if twr_fechas:
+                twr_data = {
+                    "twr_total": round((twr_total - 1) * 100, 2),
+                    "twr_anualizado": round(((twr_total ** (365 / max(dias_total, 1))) - 1) * 100, 2) if dias_total > 0 else 0,
+                    "fechas": twr_fechas,
+                    "valores": twr_valores,
+                    "dias": dias_total,
+                }
+    except Exception as e:
+        logger.warning("Error calculando TWR: %s", e)
+
     return jsonify({
         "tickers": tickers_ok,
         "pesos": {t: round(float(w[i] * 100), 2) for i, t in enumerate(tickers_ok)},
@@ -660,5 +757,163 @@ def dashboard_portafolio(portafolio_id: int):
             "crecimiento": crecimiento,
             "drawdown": drawdown_series,
         },
+        "twr": twr_data,
         "resumen_tecnico": resumen_tecnico,
+    }), 200
+
+
+# ── Backtesting ──────────────────────────────────────────────────
+
+@portafolios_bp.route("/<int:portafolio_id>/backtest", methods=["POST"])
+def backtest_portafolio(portafolio_id: int):
+    """
+    Backtesting: simula mantener los pesos actuales del portafolio
+    con rebalanceo periódico sobre datos históricos.
+
+    Body JSON (opcional):
+        periodo: "1y" | "3y" | "5y" (default "3y")
+        rebalanceo: "mensual" | "trimestral" | "anual" | "nunca" (default "trimestral")
+        inversion_inicial: float (default 10000)
+
+    Retorna: serie de valor, métricas de rendimiento, comparación vs SPY.
+    """
+    import numpy as np
+    import pandas as pd
+    import yfinance as yf
+    import datetime
+
+    data = request.get_json(silent=True) or {}
+    periodo = data.get("periodo", "3y")
+    rebalanceo = data.get("rebalanceo", "trimestral")
+    inversion = float(data.get("inversion_inicial", 10000))
+
+    try:
+        posiciones = svc.obtener_posiciones(portafolio_id, _USER_ID)
+    except ValueError as e:
+        return _error(str(e), 404)
+
+    activas = [p for p in posiciones if p.get("cantidad", 0) > 0 and p.get("precio_actual", 0) > 0]
+    if len(activas) < 1:
+        return _error("Se requiere al menos 1 posición activa.", 400)
+
+    tickers = [p["ticker"] for p in activas]
+    valores = [p.get("valor_mercado") or p["precio_actual"] * p["cantidad"] for p in activas]
+    valor_total = sum(valores)
+    pesos_objetivo = np.array([v / valor_total for v in valores]) if valor_total > 0 else np.ones(len(tickers)) / len(tickers)
+
+    # Período de datos
+    periodos_map = {"1y": 365, "3y": 3 * 365, "5y": 5 * 365}
+    dias = periodos_map.get(periodo, 3 * 365)
+    fin = datetime.date.today()
+    inicio = fin - datetime.timedelta(days=dias)
+
+    # Descargar precios diarios
+    try:
+        precios = yf.download(tickers + ["SPY"], start=inicio, end=fin, interval="1d", auto_adjust=True, progress=False)["Close"]
+    except Exception as e:
+        return _error(f"Error descargando datos: {e}", 500)
+
+    if isinstance(precios, pd.Series):
+        precios = precios.to_frame(tickers[0])
+    if isinstance(precios.columns, pd.MultiIndex):
+        precios.columns = precios.columns.get_level_values(0)
+
+    precios = precios.dropna()
+    tickers_ok = [t for t in tickers if t in precios.columns]
+    tiene_spy = "SPY" in precios.columns
+
+    if len(tickers_ok) < 1:
+        return _error("Datos insuficientes para backtesting.", 404)
+
+    # Recalcular pesos para tickers disponibles
+    idx_ok = [tickers.index(t) for t in tickers_ok]
+    w = np.array([pesos_objetivo[i] for i in idx_ok])
+    w = w / w.sum()
+
+    # Frecuencia de rebalanceo
+    reb_map = {"mensual": 21, "trimestral": 63, "anual": 252, "nunca": 999999}
+    reb_dias = reb_map.get(rebalanceo, 63)
+
+    # Simular
+    n_dias = len(precios)
+    precios_arr = precios[tickers_ok].values
+    rendimientos = precios_arr[1:] / precios_arr[:-1] - 1
+
+    # Portafolio con rebalanceo
+    valor_port = [inversion]
+    pesos_actuales = w.copy()
+    dias_desde_reb = 0
+
+    for i in range(len(rendimientos)):
+        # Rendimiento del día con pesos actuales
+        r_dia = np.dot(pesos_actuales, rendimientos[i])
+        nuevo_valor = valor_port[-1] * (1 + r_dia)
+        valor_port.append(nuevo_valor)
+
+        # Actualizar pesos por drift
+        valores_pos = pesos_actuales * (1 + rendimientos[i])
+        total_pos = valores_pos.sum()
+        pesos_actuales = valores_pos / total_pos if total_pos > 0 else w.copy()
+
+        dias_desde_reb += 1
+        if dias_desde_reb >= reb_dias:
+            pesos_actuales = w.copy()
+            dias_desde_reb = 0
+
+    valor_port = np.array(valor_port)
+    fechas = [d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d) for d in precios.index]
+
+    # SPY benchmark
+    spy_valores = None
+    if tiene_spy:
+        spy_precios = precios["SPY"].values
+        spy_valores = (spy_precios / spy_precios[0] * inversion).tolist()
+
+    # Métricas
+    retornos_diarios = np.diff(valor_port) / valor_port[:-1]
+    rend_total = (valor_port[-1] / valor_port[0] - 1) * 100
+    rend_anual = ((valor_port[-1] / valor_port[0]) ** (252 / max(len(retornos_diarios), 1)) - 1) * 100
+    vol_anual = float(np.std(retornos_diarios) * np.sqrt(252) * 100)
+    sharpe = float((rend_anual - 4) / vol_anual) if vol_anual > 0 else 0
+
+    # Max drawdown
+    cummax = np.maximum.accumulate(valor_port)
+    dd = valor_port / cummax - 1
+    max_dd = float(dd.min() * 100)
+
+    # SPY métricas
+    spy_metricas = None
+    if spy_valores:
+        spy_arr = np.array(spy_valores)
+        spy_ret = np.diff(spy_arr) / spy_arr[:-1]
+        spy_rend_total = (spy_arr[-1] / spy_arr[0] - 1) * 100
+        spy_rend_anual = ((spy_arr[-1] / spy_arr[0]) ** (252 / max(len(spy_ret), 1)) - 1) * 100
+        spy_vol = float(np.std(spy_ret) * np.sqrt(252) * 100)
+        spy_cummax = np.maximum.accumulate(spy_arr)
+        spy_dd = float((spy_arr / spy_cummax - 1).min() * 100)
+        spy_metricas = {
+            "rendimiento_total": round(spy_rend_total, 2),
+            "rendimiento_anual": round(spy_rend_anual, 2),
+            "volatilidad": round(spy_vol, 2),
+            "max_drawdown": round(spy_dd, 2),
+        }
+
+    return jsonify({
+        "periodo": periodo,
+        "rebalanceo": rebalanceo,
+        "inversion_inicial": inversion,
+        "tickers": tickers_ok,
+        "pesos": {t: round(float(w[i] * 100), 2) for i, t in enumerate(tickers_ok)},
+        "fechas": fechas,
+        "valores": [round(float(v), 2) for v in valor_port],
+        "spy": [round(float(v), 2) for v in spy_valores] if spy_valores else None,
+        "metricas": {
+            "valor_final": round(float(valor_port[-1]), 2),
+            "rendimiento_total": round(rend_total, 2),
+            "rendimiento_anual": round(rend_anual, 2),
+            "volatilidad": round(vol_anual, 2),
+            "sharpe": round(sharpe, 4),
+            "max_drawdown": round(max_dd, 2),
+        },
+        "spy_metricas": spy_metricas,
     }), 200

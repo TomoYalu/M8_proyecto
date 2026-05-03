@@ -77,6 +77,20 @@ def create_app(config_name=None):
         tables = inspector.get_table_names()
         _log.info("DB inicializada: %d tablas (%s)", len(tables), ", ".join(sorted(tables)[:5]) + ("..." if len(tables) > 5 else ""))
 
+        # Auto-seed demo si LAKSHMI_DEMO=1 y no hay portafolios
+        import os as _os
+        if _os.environ.get("LAKSHMI_DEMO") == "1":
+            from .models.portafolio import Portafolio
+            if Portafolio.query.count() == 0:
+                _log.info("LAKSHMI_DEMO=1 y sin portafolios, ejecutando seed...")
+                try:
+                    from .api.portafolios import seed_demo as _seed
+                    with app.test_request_context():
+                        _seed()
+                    _log.info("Demo seed completado.")
+                except Exception as e:
+                    _log.warning("Error en auto-seed demo: %s", e)
+
     # ── WebSocket event handlers ────────────────────────────────
     from .sockets import events  # noqa: F401
 

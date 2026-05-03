@@ -237,6 +237,11 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 space-y-4">
+      {/* TODO: IMPLEMENTACIÓN PENDIENTE */}
+      <div className="p-4 rounded-lg bg-bloomberg-yellow/10 border border-bloomberg-yellow/30 text-center">
+        <p className="text-sm font-medium text-bloomberg-yellow">🚧 IMPLEMENTACIÓN PENDIENTE</p>
+        <p className="text-xs text-bloomberg-text-muted mt-1">Este módulo está en desarrollo. La funcionalidad completa estará disponible próximamente.</p>
+      </div>
       {/* Header con ticker activo y preset selector */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>

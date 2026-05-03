@@ -100,6 +100,11 @@ export default function Alertas() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* TODO: IMPLEMENTACIÓN PENDIENTE */}
+      <div className="p-4 rounded-lg bg-bloomberg-yellow/10 border border-bloomberg-yellow/30 text-center">
+        <p className="text-sm font-medium text-bloomberg-yellow">🚧 IMPLEMENTACIÓN PENDIENTE</p>
+        <p className="text-xs text-bloomberg-text-muted mt-1">Este módulo está en desarrollo. La funcionalidad completa estará disponible próximamente.</p>
+      </div>
       {/* Error global */}
       {error && (
         <ErrorMessage
