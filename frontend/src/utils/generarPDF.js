@@ -9,7 +9,8 @@
  */
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import Plotly from 'plotly.js';
+import Plotly from 'plotly.js/dist/plotly';
+
 
 const ACCENT = [59, 130, 246];
 const GRAY = [156, 163, 175];
