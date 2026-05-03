@@ -29,6 +29,9 @@
   /* Scale up emoji/icon spans */
   span[aria-hidden="true"] { font-size: 1.3em; }
 
+  /* Scale up SVG icons in buttons */
+  button svg, a svg { min-width: 1.25rem; min-height: 1.25rem; }
+
   /* Uppercase labels more readable */
   .uppercase { letter-spacing: 0.08em; }
 
