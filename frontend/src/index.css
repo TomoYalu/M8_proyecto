@@ -35,6 +35,10 @@
   /* Uppercase labels more readable */
   .uppercase { letter-spacing: 0.08em; }
 
+  /* Override tiny custom font sizes globally */
+  [class*="text-[10px]"] { font-size: 0.8rem !important; }
+  [class*="text-[11px]"] { font-size: 0.85rem !important; }
+
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: #0a0e0c; }
   ::-webkit-scrollbar-thumb { background: rgba(148, 163, 155, 0.25); border-radius: 3px; }

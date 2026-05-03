@@ -570,14 +570,14 @@ function SummaryCards({ posiciones, analisisData, moneda = 'USD', preciosEnVivo 
             key={card.label}
             className="flex-1 min-w-[120px] bg-bloomberg-bg/50 rounded-lg px-3 py-2 border border-white/5"
           >
-            <p className="text-[10px] uppercase tracking-wider text-bloomberg-text-muted mb-0.5">
+            <p className="text-xs font-normal uppercase tracking-wider text-bloomberg-text-muted mb-0.5">
               {card.label}
             </p>
             <p className={`text-sm font-semibold ${card.color || 'text-bloomberg-text'}`}>
               {card.value}
             </p>
             {card.sub && (
-              <p className="text-[10px] text-bloomberg-text-muted">{card.sub}</p>
+              <p className="text-xs font-normal text-bloomberg-text-muted">{card.sub}</p>
             )}
           </div>
         ))}
@@ -593,7 +593,7 @@ function SummaryCards({ posiciones, analisisData, moneda = 'USD', preciosEnVivo 
               className={`w-3 h-3 rounded-full ${SEMAFORO_COLORS[semaforo]}`}
               aria-hidden="true"
             />
-            <span className="text-[10px] text-bloomberg-text-muted">
+            <span className="text-xs font-normal text-bloomberg-text-muted">
               {SEMAFORO_LABELS[semaforo]}
             </span>
           </div>
@@ -659,7 +659,7 @@ function Sparkline({ portafolioId }) {
   return (
     <div className="px-5 py-2 border-b border-white/5 shrink-0">
       <div className="flex items-center justify-between mb-1">
-        <p className="text-[10px] uppercase tracking-wider text-bloomberg-text-muted">
+        <p className="text-xs font-normal uppercase tracking-wider text-bloomberg-text-muted">
           Valor Histórico
         </p>
         <div className="flex gap-1">
@@ -667,7 +667,7 @@ function Sparkline({ portafolioId }) {
             <button
               key={r.id}
               onClick={() => setRango(r.id)}
-              className={`px-2 py-0.5 text-[10px] rounded transition-colors
+              className={`px-2.5 py-1 text-xs font-normal rounded transition-colors
                 ${rango === r.id
                   ? 'bg-bloomberg-accent/20 text-bloomberg-accent'
                   : 'text-bloomberg-text-muted hover:text-bloomberg-text'
