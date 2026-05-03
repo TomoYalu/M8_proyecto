@@ -25,7 +25,7 @@ async function capturarGraficas() {
   const images = [];
   for (const plot of plots) {
     try {
-      const url = await Plotly.toImage(plot, { format: 'png', width: 700, height: 300, scale: 2 });
+      const url = await Plotly.toImage(plot, { format: 'jpeg', width: 600, height: 250, scale: 1 });
       images.push(url);
     } catch {
       // Skip plots that can't be captured
@@ -107,7 +107,7 @@ export default async function generarPDFPortafolio({ portafolio, posiciones, tra
     for (const img of graficas) {
       y = checkPage(doc, y, chartH + 8);
       try {
-        doc.addImage(img, 'PNG', 14, y, chartW, chartH);
+        doc.addImage(img, 'JPEG', 14, y, chartW, chartH);
         y += chartH + 4;
       } catch {
         // Skip if image can't be added
@@ -191,9 +191,9 @@ export default async function generarPDFPortafolio({ portafolio, posiciones, tra
           const cH = 45;
           for (let i = 0; i < dashCharts.length; i += 2) {
             y = checkPage(doc, y, cH + 8);
-            try { doc.addImage(dashCharts[i].img, 'PNG', 14, y, cW, cH); } catch {}
+            try { doc.addImage(dashCharts[i].img, 'JPEG', 14, y, cW, cH); } catch {}
             if (dashCharts[i + 1]) {
-              try { doc.addImage(dashCharts[i + 1].img, 'PNG', 18 + cW, y, cW, cH); } catch {}
+              try { doc.addImage(dashCharts[i + 1].img, 'JPEG', 18 + cW, y, cW, cH); } catch {}
             }
             // Labels
             doc.setFontSize(7); doc.setTextColor(...GRAY);
@@ -240,7 +240,7 @@ export default async function generarPDFPortafolio({ portafolio, posiciones, tra
 // ─── Generar gráficas del dashboard off-screen ──────────────────
 async function generarGraficasDashboard(dash) {
   const charts = [];
-  const opts = { format: 'png', width: 600, height: 280, scale: 2 };
+  const opts = { format: 'jpeg', width: 500, height: 220, scale: 1 };
   const layout = { paper_bgcolor: '#ffffff', plot_bgcolor: '#f9fafb', font: { size: 10, color: '#374151' }, margin: { t: 10, r: 10, b: 30, l: 50 }, showlegend: false };
 
   // Crecimiento de $1
