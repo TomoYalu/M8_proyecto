@@ -106,8 +106,8 @@ export default function ExchangeRateBanner() {
   if (loading) {
     return (
       <div
-        className="h-7 bg-bloomberg-bg border-b border-white/5
-                   flex items-center justify-center shrink-0"
+        className="h-7 border-b border-white/5 flex items-center justify-center shrink-0"
+        style={{ background: 'rgba(10, 14, 12, 0.4)' }}
         role="status"
         aria-label="Cargando tipo de cambio"
       >
@@ -122,8 +122,8 @@ export default function ExchangeRateBanner() {
   if (error && tipoCambio.precio == null) {
     return (
       <div
-        className="h-7 bg-bloomberg-bg border-b border-white/5
-                   flex items-center justify-center shrink-0"
+        className="h-7 border-b border-white/5 flex items-center justify-center shrink-0"
+        style={{ background: 'rgba(10, 14, 12, 0.4)' }}
         role="status"
         aria-label="Error al cargar tipo de cambio"
       >
@@ -137,19 +137,20 @@ export default function ExchangeRateBanner() {
   // ─── Render ─────────────────────────────────────────────────
   return (
     <div
-      className="h-7 bg-bloomberg-bg border-b border-white/5
+      className="h-7 border-b border-white/5
                  flex items-center px-6 gap-4 shrink-0 overflow-hidden"
+      style={{ background: 'rgba(10, 14, 12, 0.4)' }}
       role="status"
       aria-live="polite"
       aria-label={`Tipo de cambio USD/MXN: ${precioStr}, cambio del día: ${cambioAbsStr} (${cambioPctStr})`}
     >
       {/* Par de divisas */}
-      <span className="text-xs font-semibold tracking-wide text-bloomberg-accent">
+      <span className="text-[11px] font-light tracking-[0.15em] text-bloomberg-accent">
         USD/MXN
       </span>
 
       {/* Precio */}
-      <span className="text-xs font-mono font-medium text-bloomberg-text">
+      <span className="text-[11px] font-mono font-light text-bloomberg-text">
         {precioStr}
       </span>
 
