@@ -67,7 +67,7 @@ const proposals = [
   {
     title: '2. Dark card + Leyenda lateral',
     subtitle: 'Fondo sólido oscuro, leyenda a la derecha',
-    className: 'rounded-xl p-5 bg-[#0a0e14] border border-white/5',
+    className: 'rounded-2xl p-5 bg-[#0a0e14] border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.2)]',
     data: [{
       labels: DUMMY.labels, values: DUMMY.values, type: 'pie', hole: 0.5,
       marker: { colors: PALETTES.ocean, line: { color: '#0a0e14', width: 3 } },
