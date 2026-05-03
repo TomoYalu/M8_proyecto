@@ -5,6 +5,18 @@ import usePrecioHistorico from '../../hooks/usePrecioHistorico';
 import { formatMoneda, formatNumero } from '../../utils/formatters';
 
 /**
+ * Retorna la fecha hábil más reciente (lun-vie) en formato YYYY-MM-DD.
+ * Si hoy es sábado retorna viernes, si domingo retorna viernes.
+ */
+function ultimaFechaHabil() {
+  const hoy = new Date();
+  const dia = hoy.getDay(); // 0=dom, 6=sab
+  if (dia === 0) hoy.setDate(hoy.getDate() - 2);
+  else if (dia === 6) hoy.setDate(hoy.getDate() - 1);
+  return hoy.toLocaleDateString('en-CA'); // YYYY-MM-DD en hora local
+}
+
+/**
  * Modal para agregar un activo (compra) o registrar un dividendo.
  *
  * Campos compra: ticker, fecha, precio_unitario, cantidad, comision,
@@ -43,7 +55,7 @@ export default function TransactionForm({
 }) {
   const [form, setForm] = useState({
     ticker: '',
-    fecha: new Date().toISOString().split('T')[0],
+    fecha: ultimaFechaHabil(),
     precio_unitario: '',
     cantidad: '',
     comision: '0',
@@ -321,7 +333,7 @@ export default function TransactionForm({
   const handleCerrar = () => {
     setForm({
       ticker: '',
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: ultimaFechaHabil(),
       precio_unitario: '',
       cantidad: '',
       comision: '0',
@@ -457,7 +469,7 @@ export default function TransactionForm({
           {/* Fecha */}
           <div>
             <label htmlFor="tx-fecha" className="block text-xs text-bloomberg-text-muted mb-1">
-              Fecha *
+              Fecha Transacción *
             </label>
             <input
               id="tx-fecha"

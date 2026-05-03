@@ -82,7 +82,7 @@ export default function usePrecioHistorico(ticker, fecha, opciones = {}) {
       // Ajustar fecha para evitar "fecha futura" por zona horaria
       const fechaAjustada = ajustarFecha(fecha.trim()) || fecha.trim();
       const params = new URLSearchParams({
-        ticker: ticker.trim(),
+        ticker: ticker.trim().toUpperCase(),
         fecha: fechaAjustada,
       });
 

@@ -140,7 +140,7 @@ def precio_historico():
         404: Ticker no encontrado.
         503: Yahoo Finance no disponible.
     """
-    ticker = request.args.get("ticker", "").strip()
+    ticker = request.args.get("ticker", "").strip().upper()
     fecha_str = request.args.get("fecha", "").strip()
 
     # Validar parámetros requeridos

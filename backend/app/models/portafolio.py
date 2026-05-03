@@ -23,6 +23,11 @@ class Portafolio(db.Model):
     fecha_creacion = db.Column(
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
     # Relaciones con cascada para eliminación completa
     posiciones = db.relationship(
@@ -69,6 +74,14 @@ class Posicion(db.Model):
     moneda = db.Column(db.String(3), nullable=False, default="USD")
     ultima_actualizacion = db.Column(db.DateTime)
 
+    created_at = db.Column(
+        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
     __table_args__ = (db.UniqueConstraint("portafolio_id", "ticker"),)
 
     def __repr__(self):
@@ -102,6 +115,11 @@ class Transaccion(db.Model):
         db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
     )
 
+    updated_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
     __table_args__ = (
         db.CheckConstraint(
             "tipo IN ('compra', 'venta', 'dividendo')",

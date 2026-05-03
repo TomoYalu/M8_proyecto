@@ -897,6 +897,8 @@ def _posiciones_con_pnl(portafolio: Portafolio) -> list[dict]:
             "ultima_actualizacion": (
                 pos.ultima_actualizacion.isoformat() if pos.ultima_actualizacion else None
             ),
+            "created_at": pos.created_at.isoformat() if pos.created_at else None,
+            "updated_at": pos.updated_at.isoformat() if pos.updated_at else None,
         })
 
     return resultado
@@ -914,6 +916,7 @@ def _portafolio_to_dict(portafolio: Portafolio) -> dict:
         "moneda": portafolio.moneda,
         "capital_inicial": float(_dec(portafolio.capital_inicial)),
         "fecha_creacion": portafolio.fecha_creacion.isoformat(),
+        "updated_at": portafolio.updated_at.isoformat() if portafolio.updated_at else None,
     }
 
 
@@ -936,5 +939,6 @@ def _transaccion_to_dict(transaccion: Transaccion) -> dict:
         ),
         "notas": transaccion.notas,
         "estado": transaccion.estado,
+        "updated_at": transaccion.updated_at.isoformat() if transaccion.updated_at else None,
         "created_at": transaccion.created_at.isoformat(),
     }

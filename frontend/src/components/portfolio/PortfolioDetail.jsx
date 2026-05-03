@@ -123,12 +123,13 @@ export default function PortfolioDetail({
     >
       {/* Header */}
       <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between shrink-0">
-        <h2 className="text-lg font-semibold text-bloomberg-text truncate">
-          {portafolio.nombre}
-        </h2>
+        <div className="flex items-center gap-4 min-w-0">
+          <h2 className="text-lg font-semibold text-bloomberg-text truncate">
+            {portafolio.nombre}
+          </h2>
 
-        <div className="flex items-center gap-2 shrink-0 ml-3">
-          {/* Optimizar portafolio */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Optimizar portafolio */}
           {onOptimizar && (
             <button
               onClick={onOptimizar}
@@ -171,6 +172,10 @@ export default function PortfolioDetail({
             Agregar Activo
           </button>
 
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
           {/* Editar */}
           <button
             onClick={() => onEditar(portafolio)}
