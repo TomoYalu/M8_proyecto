@@ -69,6 +69,7 @@ export default function Portafolios() {
   const [formNombre, setFormNombre] = useState('');
   const [formDescripcion, setFormDescripcion] = useState('');
   const [formCapitalInicial, setFormCapitalInicial] = useState('');
+  const [formMoneda, setFormMoneda] = useState('MXN');
   const [errorLocal, setErrorLocal] = useState(null);
   const [loadingLocal, setLoadingLocal] = useState(false);
   const [tickerPrellenado, setTickerPrellenado] = useState(null);
@@ -149,12 +150,14 @@ export default function Portafolios() {
         formNombre.trim(),
         formDescripcion.trim() || null,
         parseFloat(formCapitalInicial) || 0,
+        formMoneda,
       );
       await fetchConsolidado();
       setModalCrear(false);
       setFormNombre('');
       setFormDescripcion('');
       setFormCapitalInicial('');
+      setFormMoneda('MXN');
     } catch (err) {
       setErrorLocal(err.message);
     } finally {
@@ -167,6 +170,7 @@ export default function Portafolios() {
     setFormNombre(portafolio.nombre);
     setFormDescripcion(portafolio.descripcion || '');
     setFormCapitalInicial(String(portafolio.capital_inicial || ''));
+    setFormMoneda(portafolio.moneda || 'MXN');
     setErrorLocal(null);
   };
 
@@ -241,6 +245,7 @@ export default function Portafolios() {
     setFormNombre('');
     setFormDescripcion('');
     setFormCapitalInicial('');
+    setFormMoneda('MXN');
   };
 
   // ─── Datos derivados ──────────────────────────────────────────
@@ -532,16 +537,28 @@ export default function Portafolios() {
             <label htmlFor="crear-capital" className="block text-xs text-bloomberg-text-muted mb-1">
               Capital inicial (presupuesto)
             </label>
-            <input
-              id="crear-capital"
-              type="number"
-              step="1000"
-              min="0"
-              value={formCapitalInicial}
-              onChange={(e) => setFormCapitalInicial(e.target.value)}
-              placeholder="Ej. 100000"
-              className={inputClasses}
-            />
+            <div className="flex gap-2">
+              <input
+                id="crear-capital"
+                type="number"
+                step="1000"
+                min="0"
+                value={formCapitalInicial}
+                onChange={(e) => setFormCapitalInicial(e.target.value)}
+                placeholder="Ej. 100000"
+                className={`${inputClasses} flex-1`}
+              />
+              <select
+                id="crear-moneda"
+                value={formMoneda}
+                onChange={(e) => setFormMoneda(e.target.value)}
+                className={`${inputClasses} w-24`}
+                aria-label="Moneda del portafolio"
+              >
+                <option value="MXN">MXN</option>
+                <option value="USD">USD</option>
+              </select>
+            </div>
             <p className="text-[10px] text-bloomberg-text-muted mt-0.5">
               Monto total disponible para invertir en este portafolio
             </p>
@@ -613,16 +630,28 @@ export default function Portafolios() {
             <label htmlFor="editar-capital" className="block text-xs text-bloomberg-text-muted mb-1">
               Capital inicial (presupuesto)
             </label>
-            <input
-              id="editar-capital"
-              type="number"
-              step="1000"
-              min="0"
-              value={formCapitalInicial}
-              onChange={(e) => setFormCapitalInicial(e.target.value)}
-              placeholder="Ej. 100000"
-              className={inputClasses}
-            />
+            <div className="flex gap-2">
+              <input
+                id="editar-capital"
+                type="number"
+                step="1000"
+                min="0"
+                value={formCapitalInicial}
+                onChange={(e) => setFormCapitalInicial(e.target.value)}
+                placeholder="Ej. 100000"
+                className={`${inputClasses} flex-1`}
+              />
+              <select
+                id="editar-moneda"
+                value={formMoneda}
+                onChange={(e) => setFormMoneda(e.target.value)}
+                className={`${inputClasses} w-24`}
+                aria-label="Moneda del portafolio"
+              >
+                <option value="MXN">MXN</option>
+                <option value="USD">USD</option>
+              </select>
+            </div>
           </div>
           <div className="flex justify-end gap-3">
             <button

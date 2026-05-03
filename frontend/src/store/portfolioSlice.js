@@ -23,11 +23,11 @@ export const createPortfolioSlice = (set, get) => ({
     return data;
   },
 
-  crearPortafolio: async (nombre, descripcion, capitalInicial = 0) => {
+  crearPortafolio: async (nombre, descripcion, capitalInicial = 0, moneda = 'MXN') => {
     const res = await fetch('/api/portafolios', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre, descripcion, capital_inicial: capitalInicial }),
+      body: JSON.stringify({ nombre, descripcion, capital_inicial: capitalInicial, moneda }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al crear portafolio');

@@ -105,7 +105,7 @@ export default function PortfolioSidebar({
                 {/* Valor + P&L en una línea */}
                 <div className="flex items-center justify-between mt-0.5">
                   <span className="text-xs text-bloomberg-text-muted tabular-nums">
-                    {formatMoneda(valorTotal)}
+                    {formatMoneda(valorTotal, p.moneda)}
                   </span>
                   <span
                     className={`text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded-full transition-colors duration-300 ${
@@ -115,9 +115,15 @@ export default function PortfolioSidebar({
                     }`}
                   >
                     {pnlBruto >= 0 ? '+' : ''}
-                    {formatMoneda(pnlBruto)}
+                    {formatMoneda(pnlBruto, p.moneda)}
                   </span>
                 </div>
+                {/* Capital inicial si existe */}
+                {p.capital_inicial > 0 && (
+                  <p className="text-[10px] text-bloomberg-text-muted mt-0.5">
+                    Capital: {formatMoneda(p.capital_inicial, p.moneda)}
+                  </p>
+                )}
               </div>
             );
           })
