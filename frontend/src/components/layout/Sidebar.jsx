@@ -9,11 +9,11 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 const navItems = [
-  { to: '/portafolios',  label: 'Portafolios',          icon: '💼' },
-  { to: '/wizard',       label: 'Portafolio Automático', icon: '⚡' },
-  { to: '/busqueda',     label: 'Búsqueda de Activos',  icon: '🔍' },
-  { to: '/analisis',     label: 'Análisis Técnico',     icon: '📈' },
-  { to: '/noticias',     label: 'Noticias',             icon: '📰' },
+  { to: '/portafolios',  label: 'Portafolios',          icon: '◈' },
+  { to: '/wizard',       label: 'Portafolio Automático', icon: '◇' },
+  { to: '/busqueda',     label: 'Búsqueda de Activos',  icon: '⊘' },
+  { to: '/analisis',     label: 'Análisis Técnico',     icon: '△' },
+  { to: '/noticias',     label: 'Noticias',             icon: '◎' },
 ];
 
 export default function Sidebar() {
@@ -22,7 +22,7 @@ export default function Sidebar() {
   return (
     <aside
       className={`${
-        collapsed ? 'w-16' : 'w-56'
+        collapsed ? 'w-16' : 'w-60'
       } shrink-0 border-r border-white/5
         flex flex-col h-screen sticky top-0 transition-all duration-200`}
       style={{ background: 'rgba(10, 14, 12, 0.8)', backdropFilter: 'blur(12px)' }}
@@ -30,13 +30,13 @@ export default function Sidebar() {
       aria-label="Menú principal"
     >
       {/* Brand */}
-      <div className="px-3 py-5 border-b border-white/5 flex items-center justify-between">
+      <div className="px-3 py-6 border-b border-white/5 flex items-center justify-between">
         {!collapsed && (
           <div className="px-2">
-            <h2 className="font-serif text-2xl font-light tracking-wider text-bloomberg-text">
+            <h2 className="font-serif text-4xl font-light tracking-wider text-bloomberg-text">
               Lakshm<span className="text-bloomberg-accent not-italic">i</span>.
             </h2>
-            <p className="text-xs text-bloomberg-text-muted mt-0.5 font-light">
+            <p className="text-sm text-bloomberg-text-muted mt-1 font-light tracking-wide">
               Gestión de Inversiones
             </p>
           </div>
@@ -76,7 +76,7 @@ export default function Sidebar() {
               <NavLink
                 to={to}
                 className={({ isActive }) =>
-                  `relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm
+                  `relative flex items-center gap-3 px-3 py-3 rounded-lg text-base
                    font-light transition-all duration-300 ${
                     isActive
                       ? 'text-bloomberg-text'
@@ -88,7 +88,6 @@ export default function Sidebar() {
               >
                 {({ isActive }) => (
                   <>
-                    {/* Active dot indicator */}
                     {isActive && !collapsed && (
                       <span
                         className="absolute left-0 w-1 h-1 rounded-full bg-bloomberg-accent"
@@ -96,7 +95,7 @@ export default function Sidebar() {
                         aria-hidden="true"
                       />
                     )}
-                    <span className="text-base" aria-hidden="true">
+                    <span className="text-xl leading-none" style={{ fontSize: '1.4rem' }} aria-hidden="true">
                       {icon}
                     </span>
                     {!collapsed && <span>{label}</span>}
