@@ -25,7 +25,12 @@ import Busqueda from './pages/Busqueda';
 
 export default function App() {
   return (
-    <div className="flex min-h-screen bg-bloomberg-bg">
+    <div className="flex min-h-screen bg-bloomberg-bg relative">
+      {/* Ambient orbs */}
+      <div className="ambient-orb animate-float" style={{ width: 500, height: 500, background: 'rgba(16,185,129,0.12)', top: -100, right: -100 }} />
+      <div className="ambient-orb animate-float" style={{ width: 400, height: 400, background: 'rgba(4,47,46,0.25)', bottom: -50, left: -100, animationDelay: '-5s' }} />
+      <div className="ambient-orb animate-float" style={{ width: 300, height: 300, background: 'rgba(20,83,45,0.15)', top: '40%', left: '30%', animationDelay: '-10s' }} />
+
       <Sidebar />
 
       <div className="flex flex-col flex-1 min-w-0">

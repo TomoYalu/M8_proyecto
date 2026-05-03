@@ -86,20 +86,21 @@ export default function Navbar() {
 
   return (
     <header
-      className="h-14 bg-bloomberg-panel border-b border-white/5
+      className="h-14 border-b border-white/5
                  flex items-center justify-between px-6 shrink-0"
+      style={{ background: "rgba(10, 14, 12, 0.6)", backdropFilter: "blur(12px)" }}
       role="banner"
     >
       {/* Nombre de la app y contexto */}
       <div className="flex items-center gap-4">
-        <span className="text-sm font-medium text-bloomberg-text">
+        <span className="text-sm font-light text-bloomberg-text-muted">
           Plataforma de Inversiones — México
         </span>
 
         {/* Selector de portafolio activo (placeholder) */}
         <div
           className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg
-                     bg-white/5 border border-white/10 text-sm text-bloomberg-text-muted"
+                     bg-white/5 border border-white/[0.08] text-sm text-bloomberg-text-muted font-light"
           aria-label="Portafolio activo"
         >
           <span aria-hidden="true">💼</span>
