@@ -5,7 +5,7 @@
  * Institución: Tecnológico de Monterrey
  * Fecha de creación: 2026-05-02
  */
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import useStore from '../../store';
 import { formatFecha } from '../../utils/formatters';
 import {
@@ -37,6 +37,12 @@ export default function ExchangeRateBanner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const intervalRef = useRef(null);
+  const [reloj, setReloj] = useState(new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setReloj(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   // ─── Fetch tipo de cambio desde API ─────────────────────────
   const fetchTipoCambio = async () => {
@@ -106,7 +112,7 @@ export default function ExchangeRateBanner() {
   if (loading) {
     return (
       <div
-        className="h-7 border-b border-white/5 flex items-center justify-center shrink-0"
+        className="h-8 border-b border-white/5 flex items-center justify-center shrink-0"
         style={{ background: 'rgba(10, 14, 12, 0.4)' }}
         role="status"
         aria-label="Cargando tipo de cambio"
@@ -122,7 +128,7 @@ export default function ExchangeRateBanner() {
   if (error && tipoCambio.precio == null) {
     return (
       <div
-        className="h-7 border-b border-white/5 flex items-center justify-center shrink-0"
+        className="h-8 border-b border-white/5 flex items-center justify-center shrink-0"
         style={{ background: 'rgba(10, 14, 12, 0.4)' }}
         role="status"
         aria-label="Error al cargar tipo de cambio"
@@ -137,7 +143,7 @@ export default function ExchangeRateBanner() {
   // ─── Render ─────────────────────────────────────────────────
   return (
     <div
-      className="h-7 border-b border-white/5
+      className="h-8 border-b border-white/5
                  flex items-center px-6 gap-4 shrink-0 overflow-hidden"
       style={{ background: 'rgba(10, 14, 12, 0.4)' }}
       role="status"
@@ -145,22 +151,22 @@ export default function ExchangeRateBanner() {
       aria-label={`Tipo de cambio USD/MXN: ${precioStr}, cambio del día: ${cambioAbsStr} (${cambioPctStr})`}
     >
       {/* Par de divisas */}
-      <span className="text-xs font-medium tracking-wide text-bloomberg-accent">
+      <span className="text-sm font-semibold tracking-wide text-cyan-400">
         USD/MXN
       </span>
 
       {/* Precio */}
-      <span className="text-xs font-mono font-medium text-bloomberg-text">
+      <span className="text-sm font-mono font-semibold text-white">
         {precioStr}
       </span>
 
       {/* Cambio del día */}
       <span
-        className="text-xs font-mono flex items-center gap-1"
+        className="text-sm font-mono flex items-center gap-1"
         style={{ color: changeColor }}
       >
         {arrow && (
-          <span className="text-[10px] leading-none" aria-hidden="true">
+          <span className="text-xs leading-none" aria-hidden="true">
             {arrow}
           </span>
         )}
@@ -174,20 +180,14 @@ export default function ExchangeRateBanner() {
       </span>
 
       {/* Última actualización */}
-      <span className="text-[11px] text-bloomberg-text-muted">
+      <span className="text-xs text-bloomberg-text-muted">
         {ultimaAct}
       </span>
 
-      {/* Fuente (sutil) */}
-      {tipoCambio.fuente && (
-        <span className="text-[10px] text-white/20 ml-auto hidden sm:inline">
-          {tipoCambio.fuente === 'banxico_api'
-            ? 'Banxico'
-            : tipoCambio.fuente === 'cache'
-              ? 'Caché'
-              : 'Estático'}
-        </span>
-      )}
+      {/* Reloj en vivo */}
+      <span className="text-xs font-mono text-bloomberg-text-muted ml-auto tabular-nums">
+        {reloj.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      </span>
     </div>
   );
 }

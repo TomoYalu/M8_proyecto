@@ -87,31 +87,31 @@ export default function Navbar() {
 
   return (
     <header
-      className="h-14 border-b border-white/5
+      className="h-16 border-b border-white/5
                  flex items-center justify-between px-6 shrink-0"
       style={{ background: 'rgba(10, 14, 12, 0.6)', backdropFilter: 'blur(12px)' }}
       role="banner"
     >
       {/* Izquierda: título + contexto */}
       <div className="flex items-center gap-4">
-        <h1 className="text-lg font-normal tracking-wide text-bloomberg-text">
+        <h1 className="text-2xl font-semibold tracking-wide text-bloomberg-text">
           {titulo}
         </h1>
-        <span className="hidden sm:inline text-xs text-bloomberg-text-muted font-light tracking-wider uppercase">
+        <span className="hidden sm:inline text-sm text-bloomberg-text/60 font-light tracking-[0.2em] uppercase">
           Plataforma de Inversiones
         </span>
       </div>
 
       {/* Derecha: acciones */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
         {/* Favoritos */}
         <div className="relative">
           <button type="button" onClick={() => setDropdownAbierto((p) => !p)}
-            className="relative p-2 rounded-lg text-bloomberg-text-muted
+            className="relative p-2.5 rounded-lg text-bloomberg-text-muted
                        hover:text-bloomberg-text hover:bg-white/5 transition-all"
             aria-label={`Favoritos: ${favoritos.length}`} title="Favoritos"
           >
-            <svg className={`w-5 h-5 ${favoritos.length > 0 ? 'text-yellow-400 fill-yellow-400' : ''}`}
+            <svg className={`w-[22px] h-[22px] ${favoritos.length > 0 ? 'text-yellow-400 fill-yellow-400' : ''}`}
               viewBox="0 0 24 24" fill={favoritos.length > 0 ? 'currentColor' : 'none'}
               stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round"
@@ -134,11 +134,11 @@ export default function Navbar() {
 
         {/* Alertas */}
         <button
-          className="relative p-2 rounded-lg text-bloomberg-text-muted
+          className="relative p-2.5 rounded-lg text-bloomberg-text-muted
                      hover:text-bloomberg-text hover:bg-white/5 transition-all"
           aria-label={`Alertas: ${alertasNoLeidas}`} title="Alertas"
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-[22px] h-[22px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11
                  a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341
@@ -154,12 +154,12 @@ export default function Navbar() {
         {/* Usuario */}
         {user && (
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-bloomberg-accent/20 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-bloomberg-accent/20 flex items-center justify-center">
               <span className="text-xs font-medium text-bloomberg-accent">
                 {(user.nombre || user.username || '?')[0].toUpperCase()}
               </span>
             </div>
-            <span className="text-sm font-light text-bloomberg-text hidden sm:inline">
+            <span className="text-sm text-bloomberg-text hidden sm:inline">
               {user.nombre || user.username}
             </span>
             <button type="button" onClick={logout}
@@ -167,7 +167,7 @@ export default function Navbar() {
                          hover:bg-white/5 transition-all"
               title="Cerrar sesión" aria-label="Cerrar sesión"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
