@@ -1,0 +1,737 @@
+"""
+Servicio de lógica de negocio para portafolios de inversión.
+
+Implementa CRUD de portafolios, registro de transacciones (compra/venta/dividendo),
+cálculo de precio promedio ponderado, P&L bruto/neto y vista consolidada.
+
+Todas las operaciones financieras usan Decimal para precisión.
+Mensajes de error en español.
+
+Requisitos cubiertos: 1.1–1.5, 2.1–2.6, 3.1, 3.4
+"""
+
+import logging
+from collections import defaultdict
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
+
+from sqlalchemy.exc import IntegrityError
+
+from ..extensions import db
+from ..models.portafolio import Portafolio, Posicion, Transaccion
+from ..services import yfinance_service
+
+logger = logging.getLogger(__name__)
+
+
+# ── Tasa ISR sobre ganancias de capital (México) ─────────────────
+_ISR_TASA = Decimal("0.10")
+
+
+# ── Helpers internos ─────────────────────────────────────────────
+
+def _dec(value) -> Decimal:
+    """Convierte un valor a Decimal de forma segura."""
+    if value is None:
+        return Decimal("0")
+    return Decimal(str(value))
+
+
+def _calcular_pnl_neto(pnl_bruto: Decimal) -> dict:
+    """
+    Calcula P&L neto aplicando ISR 10 % solo si hay ganancia.
+
+    Returns:
+        dict con claves ``isr`` y ``pnl_neto``.
+    """
+    if pnl_bruto > 0:
+        isr = pnl_bruto * _ISR_TASA
+    else:
+        isr = Decimal("0")
+    return {"isr": isr, "pnl_neto": pnl_bruto - isr}
+
+
+# ── CRUD de portafolios ─────────────────────────────────────────
+
+def crear_portafolio(user_id: int, nombre: str, descripcion: str = None, moneda: str = "MXN") -> dict:
+    """
+    Crea un nuevo portafolio con nombre único por usuario.
+
+    Raises:
+        ValueError: si el nombre está vacío o ya existe para el usuario.
+    """
+    if not nombre or not nombre.strip():
+        raise ValueError("El nombre del portafolio no puede estar vacío.")
+
+    nombre = nombre.strip()
+
+    portafolio = Portafolio(
+        user_id=user_id,
+        nombre=nombre,
+        descripcion=descripcion,
+        moneda=moneda,
+    )
+    try:
+        db.session.add(portafolio)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        raise ValueError(
+            f"Ya existe un portafolio con el nombre '{nombre}' para este usuario."
+        )
+
+    return _portafolio_to_dict(portafolio)
+
+
+def listar_portafolios(user_id: int) -> list[dict]:
+    """Devuelve todos los portafolios del usuario."""
+    portafolios = Portafolio.query.filter_by(user_id=user_id).all()
+    return [_portafolio_to_dict(p) for p in portafolios]
+
+
+def obtener_portafolio(portafolio_id: int, user_id: int) -> dict:
+    """
+    Devuelve el detalle de un portafolio con sus posiciones.
+
+    Raises:
+        ValueError: si el portafolio no existe o no pertenece al usuario.
+    """
+    portafolio = _get_portafolio(portafolio_id, user_id)
+    data = _portafolio_to_dict(portafolio)
+    data["posiciones"] = _posiciones_con_pnl(portafolio)
+    return data
+
+
+def actualizar_portafolio(
+    portafolio_id: int, user_id: int, nombre: str = None, descripcion: str = None
+) -> dict:
+    """
+    Actualiza nombre y/o descripción de un portafolio.
+
+    Raises:
+        ValueError: si el nombre está vacío, duplicado o el portafolio no existe.
+    """
+    portafolio = _get_portafolio(portafolio_id, user_id)
+
+    if nombre is not None:
+        if not nombre or not nombre.strip():
+            raise ValueError("El nombre del portafolio no puede estar vacío.")
+        portafolio.nombre = nombre.strip()
+
+    if descripcion is not None:
+        portafolio.descripcion = descripcion
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        raise ValueError(
+            f"Ya existe un portafolio con el nombre '{nombre.strip()}' para este usuario."
+        )
+
+    return _portafolio_to_dict(portafolio)
+
+
+def eliminar_portafolio(portafolio_id: int, user_id: int) -> dict:
+    """
+    Elimina un portafolio y todas sus posiciones/transacciones en cascada.
+
+    Raises:
+        ValueError: si el portafolio no existe o no pertenece al usuario.
+    """
+    portafolio = _get_portafolio(portafolio_id, user_id)
+    nombre = portafolio.nombre
+    db.session.delete(portafolio)
+    db.session.commit()
+    return {"mensaje": f"Portafolio '{nombre}' eliminado correctamente."}
+
+
+# ── Vista consolidada ────────────────────────────────────────────
+
+def vista_consolidada(user_id: int) -> dict:
+    """
+    Devuelve la vista agregada de todos los portafolios del usuario:
+    valor total, P&L bruto total y P&L neto total.
+    """
+    portafolios = Portafolio.query.filter_by(user_id=user_id).all()
+
+    valor_total = Decimal("0")
+    pnl_bruto_total = Decimal("0")
+    resumen_portafolios = []
+
+    for p in portafolios:
+        posiciones = p.posiciones.all()
+        valor_p = Decimal("0")
+        pnl_p = Decimal("0")
+        costo_p = Decimal("0")
+
+        for pos in posiciones:
+            cantidad = _dec(pos.cantidad)
+            if cantidad <= 0:
+                continue
+            precio_actual = _dec(pos.precio_actual)
+            precio_promedio = _dec(pos.precio_promedio)
+
+            # Si precio_actual es 0 o None, excluir del cálculo de P&L
+            if precio_actual <= 0:
+                costo_p += _dec(pos.costo_total)
+                continue
+
+            costo_p += _dec(pos.costo_total)
+            valor_mercado = precio_actual * cantidad
+            pnl = (precio_actual - precio_promedio) * cantidad
+
+            valor_p += valor_mercado
+            pnl_p += pnl
+
+        neto = _calcular_pnl_neto(pnl_p)
+        valor_total += valor_p
+        pnl_bruto_total += pnl_p
+
+        resumen_portafolios.append({
+            "id": p.id,
+            "nombre": p.nombre,
+            "moneda": p.moneda,
+            "valor_total": float(valor_p),
+            "costo_total": float(costo_p),
+            "pnl_bruto": float(pnl_p),
+            "pnl_neto": float(neto["pnl_neto"]),
+            "isr_estimado": float(neto["isr"]),
+        })
+
+    neto_total = _calcular_pnl_neto(pnl_bruto_total)
+
+    return {
+        "valor_total": float(valor_total),
+        "pnl_bruto": float(pnl_bruto_total),
+        "pnl_neto": float(neto_total["pnl_neto"]),
+        "isr_estimado": float(neto_total["isr"]),
+        "portafolios": resumen_portafolios,
+    }
+
+
+# ── Transacciones ────────────────────────────────────────────────
+
+def registrar_transaccion(
+    portafolio_id: int,
+    user_id: int,
+    ticker: str,
+    tipo: str,
+    fecha,
+    precio_unitario,
+    cantidad,
+    comision=0,
+    moneda: str = "USD",
+    notas: str = None,
+) -> dict:
+    """
+    Registra una transacción de compra, venta o dividendo.
+
+    - **compra**: crea o actualiza posición con precio promedio ponderado.
+    - **venta**: reduce cantidad; rechaza si excede disponible.
+    - **dividendo**: acumula en dividendos_acumulados sin modificar cantidad.
+
+    Raises:
+        ValueError: si el tipo es inválido o la venta excede la cantidad disponible.
+    """
+    _get_portafolio(portafolio_id, user_id)
+
+    tipo = tipo.lower().strip()
+    if tipo not in ("compra", "venta", "dividendo"):
+        raise ValueError(
+            f"Tipo de transacción inválido: '{tipo}'. "
+            "Debe ser 'compra', 'venta' o 'dividendo'."
+        )
+
+    precio_unitario = _dec(precio_unitario)
+    cantidad = _dec(cantidad)
+    comision = _dec(comision)
+
+    if cantidad < 0:
+        raise ValueError("La cantidad no puede ser negativa.")
+    if precio_unitario < 0:
+        raise ValueError("El precio unitario no puede ser negativo.")
+
+    # Buscar o crear posición
+    posicion = Posicion.query.filter_by(
+        portafolio_id=portafolio_id, ticker=ticker
+    ).first()
+
+    ganancia_perdida = None
+
+    if tipo == "compra":
+        posicion, ganancia_perdida = _procesar_compra(
+            posicion, portafolio_id, user_id, ticker, precio_unitario, cantidad, moneda
+        )
+    elif tipo == "venta":
+        posicion, ganancia_perdida = _procesar_venta(
+            posicion, ticker, precio_unitario, cantidad
+        )
+    elif tipo == "dividendo":
+        posicion = _procesar_dividendo(
+            posicion, portafolio_id, user_id, ticker, precio_unitario, cantidad, moneda
+        )
+
+    # Registrar transacción
+    transaccion = Transaccion(
+        user_id=user_id,
+        portafolio_id=portafolio_id,
+        ticker=ticker,
+        tipo=tipo,
+        fecha=fecha,
+        precio_unitario=precio_unitario,
+        cantidad=cantidad,
+        comision=comision,
+        moneda=moneda,
+        ganancia_perdida=ganancia_perdida,
+        notas=notas,
+    )
+    db.session.add(transaccion)
+    db.session.commit()
+
+    return _transaccion_to_dict(transaccion)
+
+
+def listar_transacciones(
+    portafolio_id: int, user_id: int, page: int = 1, per_page: int = 50
+) -> dict:
+    """
+    Devuelve el historial de transacciones paginado, ordenado por fecha descendente.
+    """
+    _get_portafolio(portafolio_id, user_id)
+
+    paginacion = (
+        Transaccion.query
+        .filter_by(portafolio_id=portafolio_id)
+        .order_by(Transaccion.fecha.desc(), Transaccion.created_at.desc())
+        .paginate(page=page, per_page=per_page, error_out=False)
+    )
+
+    return {
+        "transacciones": [_transaccion_to_dict(t) for t in paginacion.items],
+        "total": paginacion.total,
+        "pagina": paginacion.page,
+        "por_pagina": paginacion.per_page,
+        "paginas": paginacion.pages,
+    }
+
+
+# ── Posiciones ───────────────────────────────────────────────────
+
+def obtener_posiciones(portafolio_id: int, user_id: int) -> list[dict]:
+    """
+    Devuelve las posiciones del portafolio con precios actuales y P&L.
+    """
+    portafolio = _get_portafolio(portafolio_id, user_id)
+    return _posiciones_con_pnl(portafolio)
+
+
+# ── Refresco de precios bajo demanda ─────────────────────────────
+
+def refrescar_precios(portafolio_id: int, user_id: int) -> list[dict]:
+    """
+    Refresca precios de posiciones con precio faltante (0 o NULL).
+
+    Llama a yfinance_service.obtener_precios_multiples() para los tickers
+    sin precio y actualiza las posiciones en la DB. Si yfinance falla para
+    un ticker, se mantiene el precio original sin modificación.
+
+    Requisitos: 13.1, 13.2, 13.3, 13.4
+    """
+    portafolio = _get_portafolio(portafolio_id, user_id)
+    posiciones = portafolio.posiciones.filter(Posicion.cantidad > 0).all()
+
+    tickers_sin_precio = [
+        pos.ticker for pos in posiciones
+        if pos.precio_actual is None or float(pos.precio_actual) <= 0
+    ]
+
+    if not tickers_sin_precio:
+        return _posiciones_con_pnl(portafolio)
+
+    precios = yfinance_service.obtener_precios_multiples(tickers_sin_precio)
+    precios_map = {r["ticker"]: r for r in precios if r.get("precio")}
+
+    ahora = datetime.now(timezone.utc)
+    for pos in posiciones:
+        datos = precios_map.get(pos.ticker)
+        if datos and datos["precio"]:
+            precio = _dec(datos["precio"])
+            cantidad = _dec(pos.cantidad)
+            precio_promedio = _dec(pos.precio_promedio)
+            pos.precio_actual = precio
+            pos.valor_mercado = precio * cantidad
+            pos.pnl_bruto = (precio - precio_promedio) * cantidad
+            pos.pnl_porcentual = (
+                ((precio - precio_promedio) / precio_promedio * 100)
+                if precio_promedio > 0 else Decimal("0")
+            )
+            pos.ultima_actualizacion = ahora
+
+    db.session.commit()
+    return _posiciones_con_pnl(portafolio)
+
+
+# ── Valor histórico del portafolio ───────────────────────────────
+
+def obtener_historico(portafolio_id: int, user_id: int, rango: str = "30d") -> dict:
+    """
+    Reconstruye el valor histórico del portafolio.
+
+    Algoritmo:
+    1. Obtener todas las transacciones ordenadas por fecha.
+    2. Para cada fecha en el rango, reconstruir posiciones acumuladas.
+    3. Multiplicar cantidad × precio_cierre_historico para cada ticker.
+    4. Sumar para obtener valor total del portafolio por día.
+
+    Parámetro rango: "30d", "3m", "1y". Default "30d".
+
+    Requisitos: 12.3
+    """
+    portafolio = _get_portafolio(portafolio_id, user_id)
+
+    # Mapear rango a días
+    rangos = {"30d": 30, "3m": 90, "1y": 365}
+    dias = rangos.get(rango, 30)
+
+    # Obtener transacciones ordenadas por fecha
+    transacciones = (
+        Transaccion.query
+        .filter_by(portafolio_id=portafolio_id)
+        .order_by(Transaccion.fecha.asc(), Transaccion.created_at.asc())
+        .all()
+    )
+
+    if not transacciones:
+        return {
+            "portafolio_id": portafolio_id,
+            "rango": rango,
+            "fechas": [],
+            "valores": [],
+            "moneda": portafolio.moneda,
+        }
+
+    # Determinar rango de fechas
+    hoy = date.today()
+    fecha_inicio = hoy - timedelta(days=dias)
+
+    # Reconstruir posiciones acumuladas por día
+    # Primero, calcular posiciones acumuladas hasta cada fecha
+    posiciones_acumuladas = defaultdict(lambda: Decimal("0"))
+
+    # Procesar transacciones anteriores a fecha_inicio para tener el estado base
+    for tx in transacciones:
+        tx_fecha = tx.fecha if isinstance(tx.fecha, date) else tx.fecha.date() if hasattr(tx.fecha, 'date') else tx.fecha
+        if tx_fecha > hoy:
+            continue
+        tipo = tx.tipo.lower()
+        cantidad = _dec(tx.cantidad)
+        if tipo == "compra":
+            posiciones_acumuladas[tx.ticker] += cantidad
+        elif tipo == "venta":
+            posiciones_acumuladas[tx.ticker] -= cantidad
+
+    # Ahora reconstruir día a día dentro del rango
+    # Primero, obtener el estado base al inicio del rango
+    posiciones_base = defaultdict(lambda: Decimal("0"))
+    transacciones_en_rango = []
+
+    for tx in transacciones:
+        tx_fecha = tx.fecha if isinstance(tx.fecha, date) else tx.fecha.date() if hasattr(tx.fecha, 'date') else tx.fecha
+        if tx_fecha < fecha_inicio:
+            tipo = tx.tipo.lower()
+            cantidad = _dec(tx.cantidad)
+            if tipo == "compra":
+                posiciones_base[tx.ticker] += cantidad
+            elif tipo == "venta":
+                posiciones_base[tx.ticker] -= cantidad
+        elif tx_fecha <= hoy:
+            transacciones_en_rango.append(tx)
+
+    # Obtener todos los tickers con posiciones activas
+    todos_tickers = set()
+    temp_pos = dict(posiciones_base)
+    for ticker, cant in temp_pos.items():
+        if cant > 0:
+            todos_tickers.add(ticker)
+    for tx in transacciones_en_rango:
+        todos_tickers.add(tx.ticker)
+
+    if not todos_tickers:
+        return {
+            "portafolio_id": portafolio_id,
+            "rango": rango,
+            "fechas": [],
+            "valores": [],
+            "moneda": portafolio.moneda,
+        }
+
+    # Obtener precios históricos para cada ticker
+    precios_historicos = {}
+    periodo_yf = "1mo" if dias <= 30 else "3mo" if dias <= 90 else "1y"
+    for ticker in todos_tickers:
+        try:
+            df = yfinance_service.obtener_datos_historicos(
+                ticker, periodo=periodo_yf, intervalo="1d"
+            )
+            # Convertir a dict {date: precio_cierre}
+            precios_ticker = {}
+            for idx, row in df.iterrows():
+                fecha_idx = idx.date() if hasattr(idx, 'date') else idx
+                close_val = row["Close"]
+                if hasattr(close_val, "item"):
+                    close_val = close_val.item()
+                precios_ticker[fecha_idx] = Decimal(str(round(float(close_val), 2)))
+            precios_historicos[ticker] = precios_ticker
+        except Exception as e:
+            logger.warning(
+                "Error al obtener precios históricos de '%s': %s. "
+                "Excluyendo del cálculo histórico.",
+                ticker, str(e),
+            )
+
+    # Generar serie de fechas y calcular valor por día
+    fechas = []
+    valores = []
+    posiciones_dia = defaultdict(lambda: Decimal("0"), posiciones_base)
+
+    # Índice para transacciones en rango
+    idx_tx = 0
+
+    fecha_actual = fecha_inicio
+    while fecha_actual <= hoy:
+        # Aplicar transacciones de este día
+        while idx_tx < len(transacciones_en_rango):
+            tx = transacciones_en_rango[idx_tx]
+            tx_fecha = tx.fecha if isinstance(tx.fecha, date) else tx.fecha.date() if hasattr(tx.fecha, 'date') else tx.fecha
+            if tx_fecha > fecha_actual:
+                break
+            tipo = tx.tipo.lower()
+            cantidad = _dec(tx.cantidad)
+            if tipo == "compra":
+                posiciones_dia[tx.ticker] += cantidad
+            elif tipo == "venta":
+                posiciones_dia[tx.ticker] -= cantidad
+            idx_tx += 1
+
+        # Calcular valor total del portafolio en esta fecha
+        valor_dia = Decimal("0")
+        tiene_datos = False
+        for ticker, cantidad in posiciones_dia.items():
+            if cantidad <= 0:
+                continue
+            precios_ticker = precios_historicos.get(ticker, {})
+            # Buscar precio más cercano (mismo día o anterior)
+            precio = None
+            for delta in range(0, 8):  # Buscar hasta 7 días atrás (fines de semana/feriados)
+                fecha_buscar = fecha_actual - timedelta(days=delta)
+                if fecha_buscar in precios_ticker:
+                    precio = precios_ticker[fecha_buscar]
+                    break
+            if precio is not None:
+                valor_dia += cantidad * precio
+                tiene_datos = True
+
+        if tiene_datos:
+            fechas.append(fecha_actual.isoformat())
+            valores.append(float(valor_dia))
+
+        fecha_actual += timedelta(days=1)
+
+    return {
+        "portafolio_id": portafolio_id,
+        "rango": rango,
+        "fechas": fechas,
+        "valores": valores,
+        "moneda": portafolio.moneda,
+    }
+
+
+# ── Procesamiento de transacciones ───────────────────────────────
+
+def _procesar_compra(posicion, portafolio_id, user_id, ticker, precio_unitario, cantidad, moneda):
+    """
+    Crea o actualiza posición con precio promedio ponderado.
+
+    Fórmula: precio_promedio = (costo_anterior + precio_unitario × cantidad)
+                               / (cantidad_anterior + cantidad)
+    """
+    if posicion is None:
+        posicion = Posicion(
+            user_id=user_id,
+            portafolio_id=portafolio_id,
+            ticker=ticker,
+            cantidad=Decimal("0"),
+            precio_promedio=Decimal("0"),
+            costo_total=Decimal("0"),
+            dividendos_acumulados=Decimal("0"),
+            moneda=moneda,
+        )
+        db.session.add(posicion)
+
+    cantidad_anterior = _dec(posicion.cantidad)
+    costo_anterior = _dec(posicion.costo_total)
+
+    nueva_cantidad = cantidad_anterior + cantidad
+    nuevo_costo = costo_anterior + (precio_unitario * cantidad)
+
+    posicion.cantidad = nueva_cantidad
+    posicion.costo_total = nuevo_costo
+    posicion.precio_promedio = nuevo_costo / nueva_cantidad if nueva_cantidad > 0 else Decimal("0")
+
+    return posicion, None
+
+
+def _procesar_venta(posicion, ticker, precio_unitario, cantidad):
+    """
+    Reduce cantidad de la posición y calcula ganancia/pérdida.
+
+    ganancia_perdida = (precio_unitario - precio_promedio) × cantidad
+
+    Raises:
+        ValueError: si no hay posición o la cantidad excede la disponible.
+    """
+    if posicion is None or _dec(posicion.cantidad) <= 0:
+        raise ValueError(
+            f"No existe posición activa de '{ticker}' en este portafolio. "
+            "No es posible registrar una venta."
+        )
+
+    cantidad_disponible = _dec(posicion.cantidad)
+    if cantidad > cantidad_disponible:
+        raise ValueError(
+            f"La cantidad a vender ({cantidad}) excede la cantidad disponible "
+            f"({cantidad_disponible}) de '{ticker}'. "
+            f"Cantidad máxima disponible: {cantidad_disponible}."
+        )
+
+    precio_promedio = _dec(posicion.precio_promedio)
+    ganancia_perdida = (precio_unitario - precio_promedio) * cantidad
+
+    nueva_cantidad = cantidad_disponible - cantidad
+    posicion.cantidad = nueva_cantidad
+    posicion.costo_total = precio_promedio * nueva_cantidad
+
+    return posicion, ganancia_perdida
+
+
+def _procesar_dividendo(posicion, portafolio_id, user_id, ticker, precio_unitario, cantidad, moneda):
+    """
+    Acumula dividendo sin modificar la cantidad de la posición.
+
+    El monto del dividendo es precio_unitario × cantidad.
+    """
+    if posicion is None:
+        posicion = Posicion(
+            user_id=user_id,
+            portafolio_id=portafolio_id,
+            ticker=ticker,
+            cantidad=Decimal("0"),
+            precio_promedio=Decimal("0"),
+            costo_total=Decimal("0"),
+            dividendos_acumulados=Decimal("0"),
+            moneda=moneda,
+        )
+        db.session.add(posicion)
+
+    monto_dividendo = precio_unitario * cantidad
+    posicion.dividendos_acumulados = _dec(posicion.dividendos_acumulados) + monto_dividendo
+
+    return posicion
+
+
+# ── Helpers de consulta ──────────────────────────────────────────
+
+def _get_portafolio(portafolio_id: int, user_id: int) -> Portafolio:
+    """
+    Obtiene un portafolio verificando que pertenezca al usuario.
+
+    Raises:
+        ValueError: si no se encuentra.
+    """
+    portafolio = Portafolio.query.filter_by(id=portafolio_id, user_id=user_id).first()
+    if portafolio is None:
+        raise ValueError(
+            f"No se encontró el portafolio con id {portafolio_id} para este usuario."
+        )
+    return portafolio
+
+
+def _posiciones_con_pnl(portafolio: Portafolio) -> list[dict]:
+    """Calcula P&L bruto y neto para cada posición del portafolio."""
+    posiciones = portafolio.posiciones.all()
+    resultado = []
+
+    for pos in posiciones:
+        cantidad = _dec(pos.cantidad)
+        precio_promedio = _dec(pos.precio_promedio)
+        precio_actual = _dec(pos.precio_actual)
+        costo_total = _dec(pos.costo_total)
+        precio_pendiente = precio_actual <= 0
+
+        valor_mercado = precio_actual * cantidad if cantidad > 0 else Decimal("0")
+        pnl_bruto = (precio_actual - precio_promedio) * cantidad if cantidad > 0 else Decimal("0")
+        pnl_porcentual = (
+            ((precio_actual - precio_promedio) / precio_promedio * 100)
+            if precio_promedio > 0 and cantidad > 0
+            else Decimal("0")
+        )
+        neto = _calcular_pnl_neto(pnl_bruto)
+
+        resultado.append({
+            "id": pos.id,
+            "ticker": pos.ticker,
+            "cantidad": float(cantidad),
+            "precio_promedio": float(precio_promedio),
+            "costo_total": float(costo_total),
+            "precio_actual": float(precio_actual),
+            "valor_mercado": float(valor_mercado),
+            "pnl_bruto": float(pnl_bruto),
+            "pnl_neto": float(neto["pnl_neto"]),
+            "isr_estimado": float(neto["isr"]),
+            "pnl_porcentual": float(pnl_porcentual),
+            "dividendos_acumulados": float(_dec(pos.dividendos_acumulados)),
+            "moneda": pos.moneda,
+            "precio_pendiente": precio_pendiente,
+            "ultima_actualizacion": (
+                pos.ultima_actualizacion.isoformat() if pos.ultima_actualizacion else None
+            ),
+        })
+
+    return resultado
+
+
+# ── Serialización ────────────────────────────────────────────────
+
+def _portafolio_to_dict(portafolio: Portafolio) -> dict:
+    """Convierte un portafolio a diccionario."""
+    return {
+        "id": portafolio.id,
+        "user_id": portafolio.user_id,
+        "nombre": portafolio.nombre,
+        "descripcion": portafolio.descripcion,
+        "moneda": portafolio.moneda,
+        "fecha_creacion": portafolio.fecha_creacion.isoformat(),
+    }
+
+
+def _transaccion_to_dict(transaccion: Transaccion) -> dict:
+    """Convierte una transacción a diccionario."""
+    return {
+        "id": transaccion.id,
+        "portafolio_id": transaccion.portafolio_id,
+        "ticker": transaccion.ticker,
+        "tipo": transaccion.tipo,
+        "fecha": transaccion.fecha.isoformat() if transaccion.fecha else None,
+        "precio_unitario": float(_dec(transaccion.precio_unitario)),
+        "cantidad": float(_dec(transaccion.cantidad)),
+        "comision": float(_dec(transaccion.comision)),
+        "moneda": transaccion.moneda,
+        "ganancia_perdida": (
+            float(_dec(transaccion.ganancia_perdida))
+            if transaccion.ganancia_perdida is not None
+            else None
+        ),
+        "notas": transaccion.notas,
+        "created_at": transaccion.created_at.isoformat(),
+    }

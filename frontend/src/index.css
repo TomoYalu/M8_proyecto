@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Bloomberg dark theme base styles */
+  body {
+    @apply bg-bloomberg-bg text-bloomberg-text;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  /* Scrollbar styling for dark theme */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-bloomberg-bg;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-bloomberg-text-muted/30 rounded;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-bloomberg-text-muted/50;
+  }
+}
+
+@layer components {
+  /* Panel/card base style */
+  .panel {
+    @apply bg-bloomberg-panel rounded-lg border border-white/5;
+  }
+
+  /* Accent button */
+  .btn-accent {
+    @apply bg-bloomberg-accent text-white px-4 py-2 rounded-lg
+           hover:bg-bloomberg-accent/80 transition-colors
+           focus:outline-none focus:ring-2 focus:ring-bloomberg-accent/50;
+  }
+
+  /* Secondary button */
+  .btn-secondary {
+    @apply bg-bloomberg-panel text-bloomberg-text px-4 py-2 rounded-lg
+           border border-white/10 hover:border-white/20 transition-colors
+           focus:outline-none focus:ring-2 focus:ring-bloomberg-accent/50;
+  }
+
+  /* Positive/negative value colors */
+  .text-positive {
+    @apply text-bloomberg-green;
+  }
+
+  .text-negative {
+    @apply text-bloomberg-red;
+  }
+
+  .text-neutral {
+    @apply text-bloomberg-yellow;
+  }
+}
+
+
+/* Resizable chart handle */
+.resizable-chart {
+  position: relative;
+}
+
+.resizable-chart::-webkit-resizer {
+  background: linear-gradient(135deg, transparent 60%, rgba(59, 130, 246, 0.4) 60%, rgba(59, 130, 246, 0.4) 70%, transparent 70%, transparent 80%, rgba(59, 130, 246, 0.4) 80%);
+  border-radius: 0 0 8px 0;
+}
+
+/* GridStack overrides for Bloomberg dark theme */
+.grid-stack {
+  background: transparent !important;
+}
+
+.grid-stack-item-content {
+  background: transparent !important;
+  inset: 3px !important;
+}
+
+.grid-stack > .grid-stack-item > .grid-stack-item-content {
+  overflow: hidden;
+}
+
+/* Resize handle styling */
+.grid-stack > .grid-stack-item > .ui-resizable-se,
+.grid-stack > .grid-stack-item > .ui-resizable-sw {
+  background: none !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.grid-stack > .grid-stack-item > .ui-resizable-se::after,
+.grid-stack > .grid-stack-item > .ui-resizable-sw::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  width: 8px;
+  height: 8px;
+  border-bottom: 2px solid rgba(59, 130, 246, 0.4);
+  border-right: 2px solid rgba(59, 130, 246, 0.4);
+}
+
+.grid-stack > .grid-stack-item > .ui-resizable-se::after {
+  right: 4px;
+}
+
+.grid-stack > .grid-stack-item > .ui-resizable-sw::after {
+  left: 4px;
+  border-right: none;
+  border-left: 2px solid rgba(59, 130, 246, 0.4);
+}
+
+.grid-stack > .grid-stack-item:hover > .ui-resizable-se::after,
+.grid-stack > .grid-stack-item:hover > .ui-resizable-sw::after {
+  border-color: rgba(59, 130, 246, 0.8);
+}
+
+/* Placeholder when dragging */
+.grid-stack > .grid-stack-placeholder > .placeholder-content {
+  border: 2px dashed rgba(59, 130, 246, 0.3) !important;
+  background: rgba(59, 130, 246, 0.05) !important;
+  border-radius: 8px;
+}

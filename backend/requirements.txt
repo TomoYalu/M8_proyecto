@@ -1,0 +1,42 @@
+# =============================================================================
+# Lakshmi Q2 — Backend Dependencies
+# Python 3.11 | Versiones fijadas para reproducibilidad
+# =============================================================================
+
+# --- Framework Web ---
+Flask==3.1.3
+Flask-CORS==6.0.2
+
+# --- WebSocket (tiempo real: precios, alertas, noticias) ---
+Flask-SocketIO==5.6.1
+eventlet==0.41.0
+
+# --- Base de datos y migraciones ---
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.1.0
+
+# --- Scheduler (jobs periódicos: precios, noticias, fiscal, alertas) ---
+APScheduler==3.11.2
+
+# --- Servidor WSGI producción ---
+gunicorn==25.3.0
+
+# --- Datos financieros (Yahoo Finance) ---
+yfinance==1.3.0
+
+# --- Análisis de datos y cálculos técnicos ---
+pandas==3.0.2
+numpy==2.4.4
+
+# --- HTTP requests (Banxico API, fuentes externas) ---
+requests==2.33.1
+
+# --- RSS feeds (semáforo de noticias) ---
+feedparser==6.0.12
+
+# --- Optimización de portafolio (Markowitz) ---
+scipy==1.15.3
+
+# --- Testing ---
+pytest==9.0.3
+hypothesis==6.152.4

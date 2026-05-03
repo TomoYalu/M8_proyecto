@@ -1,0 +1,85 @@
+# =============================================================================
+# Lakshmi Q2 — Docker Compose
+#
+# Servicios:
+#   backend  — Flask + Gunicorn + eventlet (puerto 5000 interno)
+#   frontend — React/Vite build servido por Nginx (puerto 3000 dev)
+#   nginx    — Proxy reverso público (puerto 80)
+#
+# Red: lakshmi-net
+# Volúmenes: SQLite DB + logs
+# =============================================================================
+
+services:
+  # ── Backend: Flask + Gunicorn + eventlet ─────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lakshmi-backend
+    restart: unless-stopped
+    expose:
+      - "5000"
+    env_file:
+      - .env
+    volumes:
+      - sqlite-data:/app/data
+      - backend-logs:/app/logs
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - DATABASE_URL=sqlite:////app/data/lakshmi.db
+    networks:
+      - lakshmi-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  # ── Frontend: React/Vite build + Nginx estático ──────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: lakshmi-frontend
+    expose:
+      - "80"
+    networks:
+      - lakshmi-net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
+
+  # ── Nginx: Proxy reverso público ─────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: lakshmi-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - lakshmi-net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
+
+# ── Red interna ────────────────────────────────────────────────────
+networks:
+  lakshmi-net:
+    driver: bridge
+
+# ── Volúmenes persistentes ─────────────────────────────────────────
+volumes:
+  sqlite-data:
+    driver: local
+  backend-logs:
+    driver: local
