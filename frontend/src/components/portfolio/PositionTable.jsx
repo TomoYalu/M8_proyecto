@@ -476,6 +476,8 @@ export default function PositionTable({ posiciones = [], preciosEnVivo = {}, onE
       ticker={drawerTicker}
       abierto={drawerAbierto}
       onCerrar={() => setDrawerAbierto(false)}
+      tickers={posiciones.map((p) => p.ticker).filter(Boolean)}
+      onNavegar={(t) => setDrawerTicker(t)}
     />
     </>
   );
