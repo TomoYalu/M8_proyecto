@@ -42,7 +42,6 @@ export default function PortfolioDetail({
   onRegistrarTransaccion,
   onCambiarPagina,
   onAgregarTicker,
-  onOptimizar,
   onEditarPosicion,
   onTransaccionActualizada,
 }) {
@@ -87,7 +86,12 @@ export default function PortfolioDetail({
     setAnalisisCache(null);
     setAnalisisExecuted(false);
     limpiarResultados();
-    ejecutarOptimizacion({ tickers: tickersActivos, portafolio_id: portafolio.id })
+    const perfil = PERFILES[perfilAnalisis] || PERFILES.moderado;
+    ejecutarOptimizacion({
+      tickers: tickersActivos,
+      portafolio_id: portafolio.id,
+      max_peso: perfil.max_peso,
+    })
       .then((data) => {
         setAnalisisCache(data);
         setAnalisisExecuted(true);
@@ -96,7 +100,7 @@ export default function PortfolioDetail({
         setAnalisisExecuted(true);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tickersActivos.join(',')]);
+  }, [tickersActivos.join(','), perfilAnalisis]);
 
   // Reset cache when portfolio changes
   useEffect(() => {
@@ -129,28 +133,6 @@ export default function PortfolioDetail({
           </h2>
 
           <div className="flex items-center gap-2 shrink-0">
-            {/* Optimizar portafolio */}
-          {onOptimizar && (
-            <button
-              onClick={onOptimizar}
-              className="px-3 py-1.5 text-xs rounded-lg bg-bloomberg-yellow/20 text-bloomberg-yellow
-                         hover:bg-bloomberg-yellow/30 transition-colors flex items-center gap-1.5"
-              aria-label="Optimizar portafolio con Markowitz"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-3.5 h-3.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              Optimizar
-            </button>
-          )}
 
           {/* Agregar Activo */}
           <button
@@ -317,12 +299,30 @@ export default function PortfolioDetail({
               hidden={tabActiva !== 'analisis'}
             >
               {tabActiva === 'analisis' && (
+                {/* Selector de perfil */}
+                <div className="flex items-center gap-2 mb-4">
+                  {Object.entries(PERFILES).map(([key, p]) => (
+                    <button
+                      key={key}
+                      onClick={() => { setPerfilAnalisis(key); setAnalisisCache(null); setAnalisisExecuted(false); limpiarResultados(); }}
+                      className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                        perfilAnalisis === key
+                          ? 'bg-bloomberg-accent/20 border-bloomberg-accent/40 text-bloomberg-accent'
+                          : 'bg-white/5 border-white/10 text-bloomberg-text-muted hover:bg-white/10'
+                      }`}
+                      title={p.desc}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
                 <AnalisisPanel
                   tickersActivos={tickersActivos}
                   analisisData={analisisData}
                   cargando={cargandoOptimizacion}
                   error={errorOptimizacion}
                   onReOptimizar={handleReOptimizar}
+                  portafolioId={portafolio.id}
                 />
               )}
             </div>
@@ -601,7 +601,7 @@ function Sparkline({ portafolioId }) {
 
 
 // ─── Análisis Panel (Req 9.1–9.5) ──────────────────────────────
-function AnalisisPanel({ tickersActivos, analisisData, cargando, error, onReOptimizar }) {
+function AnalisisPanel({ tickersActivos, analisisData, cargando, error, onReOptimizar, portafolioId }) {
   // Less than 2 active positions (Req 9.3)
   if (tickersActivos.length < 2) {
     return (
@@ -668,6 +668,7 @@ function AnalisisPanel({ tickersActivos, analisisData, cargando, error, onReOpti
         cargando={cargando}
         error={error}
         onReintentar={onReOptimizar}
+        portafolioId={portafolioId}
       />
     </div>
   );

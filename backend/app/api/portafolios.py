@@ -312,6 +312,55 @@ def obtener_historico(portafolio_id: int):
         return _error(str(e), 404)
     return jsonify(resultado), 200
 
+@portafolios_bp.route("/<int:portafolio_id>/aplicar-optimizacion", methods=["POST"])
+def aplicar_optimizacion(portafolio_id):
+    """
+    Aplica los pesos óptimos al portafolio creando transacciones pendientes.
+    Compara pesos actuales vs óptimos y genera compras/ventas para ajustar.
+
+    Body: { acciones: { ticker: { cantidad_objetivo: int, cantidad_actual: int, precio: float } } }
+    """
+    from ..services import portfolio_service as svc
+    from datetime import date
+
+    data = request.get_json(silent=True) or {}
+    acciones = data.get("acciones", {})
+
+    if not acciones:
+        return jsonify({"error": "No se proporcionaron acciones para aplicar."}), 400
+
+    resultados = []
+    hoy = date.today()
+
+    for ticker, info in acciones.items():
+        objetivo = int(info.get("cantidad_objetivo", 0))
+        actual = int(info.get("cantidad_actual", 0))
+        precio = float(info.get("precio", 0))
+        diff = objetivo - actual
+
+        if diff == 0 or precio <= 0:
+            continue
+
+        tipo = "compra" if diff > 0 else "venta"
+        cantidad = abs(diff)
+
+        try:
+            tx = svc.registrar_transaccion(
+                portafolio_id, _USER_ID, ticker, tipo, hoy,
+                precio, cantidad, 0,
+                info.get("moneda", "USD"),
+                notas=f"Ajuste de optimización: {actual} → {objetivo}",
+                estado="pendiente",
+            )
+            resultados.append(tx)
+        except ValueError as e:
+            resultados.append({"ticker": ticker, "error": str(e)})
+
+    return jsonify({
+        "mensaje": f"{len(resultados)} transacciones pendientes creadas.",
+        "transacciones": resultados,
+    }), 201
+
 @portafolios_bp.route("/seed-demo", methods=["GET"])
 def check_demo():
     """Verifica si el modo demo está habilitado."""

@@ -501,7 +501,6 @@ export default function Portafolios() {
                   setModalTransaccion(true);
                   setErrorLocal(null);
                 }}
-                onOptimizar={handleOptimizarPortafolio}
                 onEditarPosicion={handleEditarPosicion}
                 onTransaccionActualizada={handleTransaccionActualizada}
               />
@@ -545,21 +544,6 @@ export default function Portafolios() {
           </div>
         </>
       )}
-
-      {/* Modal: Optimizador de portafolio */}
-      <Modal
-        abierto={modalOptimizador}
-        onCerrar={handleCerrarOptimizador}
-        titulo={`Optimización — ${portafolioSeleccionado?.nombre || 'Portafolio'}`}
-        ancho="max-w-7xl"
-      >
-        <div className="max-h-[75vh] overflow-y-auto">
-          <OptimizerResults
-            resultado={resultadoOptimizacion}
-            cargando={cargandoOptimizacion}
-            error={errorOptimizacion}
-            onReintentar={handleOptimizarPortafolio}
-          />
         </div>
       </Modal>
 

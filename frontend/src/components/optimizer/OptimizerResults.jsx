@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import Spinner from '../common/Spinner';
 import ErrorMessage from '../common/ErrorMessage';
 import RiskCards from './RiskCards';
@@ -22,8 +22,65 @@ import ExecutionTable from './ExecutionTable';
  *
  * Requisitos cubiertos: 7.5, 7.6, 6.8, 7.8
  */
-export default function OptimizerResults({ resultado, cargando, error, onReintentar }) {
+export default function OptimizerResults({ resultado, cargando, error, onReintentar, portafolioId }) {
   const containerRef = useRef(null);
+  const [aplicando, setAplicando] = useState(false);
+  const [aplicadoMsg, setAplicadoMsg] = useState(null);
+
+  const handleAplicar = useCallback(async () => {
+    if (!portafolioId || !resultado?.max_sharpe?.acciones) return;
+    setAplicando(true);
+    setAplicadoMsg(null);
+    try {
+      const acciones = {};
+      const tickers = resultado.tickers || [];
+      const maxSharpe = resultado.max_sharpe;
+      const pesosActuales = resultado.pesos_actuales;
+
+      tickers.forEach((ticker) => {
+        const objetivo = maxSharpe.acciones?.[ticker] || 0;
+        // Find current quantity from pesos_actuales or execution table
+        let actual = 0;
+        if (pesosActuales?.pesos_actuales) {
+          // We need actual shares, not percentages. Use estadisticas for price.
+          const precio = resultado.estadisticas?.[ticker]?.precio || 0;
+          if (precio > 0) {
+            const pesoActual = (pesosActuales.pesos_actuales[ticker] || 0) / 100;
+            const inversion = resultado.max_sharpe?.monto?.[ticker] || 0;
+            // Estimate current shares from current weight
+            const valorTotal = Object.values(maxSharpe.monto || {}).reduce((s, v) => s + v, 0);
+            actual = Math.floor(pesoActual * valorTotal / precio);
+          }
+        }
+        if (objetivo !== actual) {
+          acciones[ticker] = {
+            cantidad_objetivo: objetivo,
+            cantidad_actual: actual,
+            precio: resultado.estadisticas?.[ticker]?.precio || 0,
+            moneda: 'USD',
+          };
+        }
+      });
+
+      if (Object.keys(acciones).length === 0) {
+        setAplicadoMsg('El portafolio ya está alineado con la optimización.');
+        return;
+      }
+
+      const res = await fetch(`/api/portafolios/${portafolioId}/aplicar-optimizacion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acciones }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al aplicar');
+      setAplicadoMsg(`✓ ${data.mensaje} Revisa el historial de transacciones para confirmar.`);
+    } catch (err) {
+      setAplicadoMsg(`Error: ${err.message}`);
+    } finally {
+      setAplicando(false);
+    }
+  }, [portafolioId, resultado]);
 
   // Resize Plotly charts when container resizes
   useEffect(() => {
@@ -193,6 +250,32 @@ export default function OptimizerResults({ resultado, cargando, error, onReinten
           />
         </Panel>
       </div>
+      {/* Aplicar al portafolio */}
+      {portafolioId && resultado?.max_sharpe && (
+        <div className="mt-6 p-4 rounded-xl bg-bloomberg-panel border border-white/5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-bloomberg-text">Aplicar optimización al portafolio</h3>
+              <p className="text-xs text-bloomberg-text-muted mt-0.5">
+                Genera transacciones pendientes de compra/venta para alinear los pesos.
+              </p>
+            </div>
+            <button
+              onClick={handleAplicar}
+              disabled={aplicando}
+              className="px-4 py-2 text-sm rounded-lg bg-bloomberg-accent text-white
+                         hover:bg-bloomberg-accent/80 disabled:opacity-50 transition-colors"
+            >
+              {aplicando ? 'Aplicando...' : '📊 Aplicar al portafolio'}
+            </button>
+          </div>
+          {aplicadoMsg && (
+            <p className={`text-xs mt-2 ${aplicadoMsg.startsWith('Error') ? 'text-bloomberg-red' : 'text-bloomberg-green'}`}>
+              {aplicadoMsg}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
