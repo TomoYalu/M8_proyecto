@@ -21,7 +21,7 @@ Requisitos cubiertos: 2.1, 2.11, 3.1–3.8, 4.1–4.4
 
 import logging
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 
 from ..services import optimizer_service, portfolio_service
 
@@ -32,8 +32,6 @@ optimizador_bp = Blueprint(
 logger = logging.getLogger(__name__)
 
 # ── user_id fijo (single-user) ──────────────────────────────────
-_USER_ID = 1
-
 # ── Períodos válidos ────────────────────────────────────────────
 _PERIODOS_VALIDOS = {"1y", "3y", "5y", "10y"}
 
@@ -91,7 +89,7 @@ def optimizar():
     if portafolio_id is not None:
         try:
             posiciones = portfolio_service.obtener_posiciones(
-                portafolio_id, _USER_ID
+                portafolio_id, g.user_id
             )
         except ValueError as e:
             return _error(str(e), 404)

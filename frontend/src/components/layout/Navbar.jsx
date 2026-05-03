@@ -81,6 +81,8 @@ export default function Navbar() {
   const wsConnected = useStore((s) => s.wsConnected);
   const favoritos = useStore((s) => s.favoritos);
   const toggleFavorito = useStore((s) => s.toggleFavorito);
+  const user = useStore((s) => s.user);
+  const logout = useStore((s) => s.logout);
 
   const [dropdownAbierto, setDropdownAbierto] = useState(false);
 
@@ -180,6 +182,26 @@ export default function Navbar() {
           </svg>
           <AlertBadge count={alertasNoLeidas} />
         </button>
+
+        {/* Usuario y logout */}
+        {user && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-bloomberg-text-muted">
+              {user.nombre || user.username}
+            </span>
+            <button
+              type="button"
+              onClick={logout}
+              className="p-2 rounded-lg text-bloomberg-text-muted hover:text-bloomberg-red hover:bg-white/5 transition-colors"
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/* Indicador de conexión WebSocket */}
         <div

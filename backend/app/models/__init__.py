@@ -20,3 +20,4 @@ from .cache import PrecioCache, InpcCache, TipoCambioCache, CicloCache  # noqa: 
 from .universo import UniversoTicker  # noqa: F401
 from .simulacion import Simulacion, SimulacionActivo  # noqa: F401
 from .configuracion import ConfiguracionUsuario  # noqa: F401
+from .user import User  # noqa: F401

@@ -18,7 +18,7 @@ Requisitos cubiertos: 6.1, 6.2, 6.7
 
 import logging
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, g
 
 from ..extensions import db, socketio
 from ..models.noticia import Noticia
@@ -29,9 +29,6 @@ logger = logging.getLogger(__name__)
 
 noticias_bp = Blueprint("noticias", __name__, url_prefix="/api/noticias")
 
-_USER_ID = 1
-
-
 def _error(mensaje: str, codigo: int):
     """Respuesta JSON de error con mensaje en español."""
     return jsonify({"error": mensaje}), codigo
@@ -39,7 +36,7 @@ def _error(mensaje: str, codigo: int):
 
 def _auto_fetch_si_vacio(ticker: str) -> None:
     """Llama a NewsService.actualizar_noticias si no hay noticias en DB para el ticker."""
-    count = Noticia.query.filter_by(ticker=ticker, user_id=_USER_ID).count()
+    count = Noticia.query.filter_by(ticker=ticker, user_id=g.user_id).count()
     if count == 0:
         try:
             NewsService.actualizar_noticias(ticker)
@@ -103,7 +100,7 @@ def forzar_actualizacion():
     try:
         posiciones_activas = Posicion.query.filter(
             Posicion.cantidad > 0,
-            Posicion.user_id == _USER_ID,
+            Posicion.user_id == g.user_id,
         ).all()
 
         if not posiciones_activas:

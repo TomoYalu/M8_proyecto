@@ -28,7 +28,7 @@ Requisitos cubiertos: 1.1–1.5, 2.1–2.6, 12.3, 13.3
 
 from datetime import date
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 
 from ..services import portfolio_service as svc
 
@@ -37,9 +37,6 @@ portafolios_bp = Blueprint(
 )
 
 # ── user_id fijo (single-user, Req 11.2) ────────────────────────
-_USER_ID = 1
-
-
 # ── Helpers ──────────────────────────────────────────────────────
 
 def _error(mensaje: str, codigo: int):
@@ -67,7 +64,7 @@ def _parse_fecha(valor: str) -> date:
 @portafolios_bp.route("", methods=["GET"])
 def listar_portafolios():
     """Lista todos los portafolios del usuario."""
-    portafolios = svc.listar_portafolios(_USER_ID)
+    portafolios = svc.listar_portafolios(g.user_id)
     return jsonify(portafolios), 200
 
 
@@ -81,7 +78,7 @@ def crear_portafolio():
     capital_inicial = data.get("capital_inicial", 0)
 
     try:
-        resultado = svc.crear_portafolio(_USER_ID, nombre, descripcion, moneda=moneda, capital_inicial=capital_inicial)
+        resultado = svc.crear_portafolio(g.user_id, nombre, descripcion, moneda=moneda, capital_inicial=capital_inicial)
     except ValueError as e:
         msg = str(e)
         if "Ya existe" in msg:
@@ -96,7 +93,7 @@ def crear_portafolio():
 @portafolios_bp.route("/consolidado", methods=["GET"])
 def vista_consolidada():
     """Vista agregada de todos los portafolios del usuario."""
-    resultado = svc.vista_consolidada(_USER_ID)
+    resultado = svc.vista_consolidada(g.user_id)
     return jsonify(resultado), 200
 
 
@@ -106,7 +103,7 @@ def vista_consolidada():
 def obtener_portafolio(portafolio_id: int):
     """Detalle de un portafolio con sus posiciones."""
     try:
-        resultado = svc.obtener_portafolio(portafolio_id, _USER_ID)
+        resultado = svc.obtener_portafolio(portafolio_id, g.user_id)
     except ValueError as e:
         return _error(str(e), 404)
 
@@ -123,7 +120,7 @@ def actualizar_portafolio(portafolio_id: int):
 
     try:
         resultado = svc.actualizar_portafolio(
-            portafolio_id, _USER_ID, nombre=nombre, descripcion=descripcion,
+            portafolio_id, g.user_id, nombre=nombre, descripcion=descripcion,
             capital_inicial=capital_inicial,
         )
     except ValueError as e:
@@ -141,7 +138,7 @@ def actualizar_portafolio(portafolio_id: int):
 def eliminar_portafolio(portafolio_id: int):
     """Elimina un portafolio y todos sus datos en cascada."""
     try:
-        resultado = svc.eliminar_portafolio(portafolio_id, _USER_ID)
+        resultado = svc.eliminar_portafolio(portafolio_id, g.user_id)
     except ValueError as e:
         return _error(str(e), 404)
 
@@ -154,7 +151,7 @@ def eliminar_portafolio(portafolio_id: int):
 def obtener_posiciones(portafolio_id: int):
     """Lista posiciones del portafolio con precios actuales y P&L."""
     try:
-        resultado = svc.obtener_posiciones(portafolio_id, _USER_ID)
+        resultado = svc.obtener_posiciones(portafolio_id, g.user_id)
     except ValueError as e:
         return _error(str(e), 404)
 
@@ -180,7 +177,7 @@ def actualizar_posicion(portafolio_id: int, posicion_id: int):
 
     try:
         resultado = svc.actualizar_posicion(
-            portafolio_id, _USER_ID, posicion_id, cantidad_deseada
+            portafolio_id, g.user_id, posicion_id, cantidad_deseada
         )
     except ValueError as e:
         msg = str(e)
@@ -201,7 +198,7 @@ def listar_transacciones(portafolio_id: int):
 
     try:
         resultado = svc.listar_transacciones(
-            portafolio_id, _USER_ID, page=page, per_page=per_page
+            portafolio_id, g.user_id, page=page, per_page=per_page
         )
     except ValueError as e:
         return _error(str(e), 404)
@@ -230,7 +227,7 @@ def registrar_transaccion(portafolio_id: int):
     try:
         resultado = svc.registrar_transaccion(
             portafolio_id=portafolio_id,
-            user_id=_USER_ID,
+            user_id=g.user_id,
             ticker=data["ticker"],
             tipo=data["tipo"],
             fecha=fecha,
@@ -264,7 +261,7 @@ def confirmar_transaccion(portafolio_id: int, transaccion_id: int):
     """Confirma una transacción pendiente."""
     try:
         resultado = svc.confirmar_transaccion(
-            portafolio_id, _USER_ID, transaccion_id
+            portafolio_id, g.user_id, transaccion_id
         )
     except ValueError as e:
         msg = str(e)
@@ -283,7 +280,7 @@ def cancelar_transaccion(portafolio_id: int, transaccion_id: int):
     """Cancela una transacción pendiente y revierte los cambios."""
     try:
         resultado = svc.cancelar_transaccion(
-            portafolio_id, _USER_ID, transaccion_id
+            portafolio_id, g.user_id, transaccion_id
         )
     except ValueError as e:
         msg = str(e)
@@ -300,7 +297,7 @@ def cancelar_transaccion(portafolio_id: int, transaccion_id: int):
 def refrescar_precios(portafolio_id: int):
     """Refresca precios de posiciones con precio faltante."""
     try:
-        resultado = svc.refrescar_precios(portafolio_id, _USER_ID)
+        resultado = svc.refrescar_precios(portafolio_id, g.user_id)
     except ValueError as e:
         return _error(str(e), 404)
     return jsonify(resultado), 200
@@ -313,7 +310,7 @@ def obtener_historico(portafolio_id: int):
     """Valor histórico del portafolio para sparkline."""
     rango = request.args.get("rango", "30d")
     try:
-        resultado = svc.obtener_historico(portafolio_id, _USER_ID, rango)
+        resultado = svc.obtener_historico(portafolio_id, g.user_id, rango)
     except ValueError as e:
         return _error(str(e), 404)
     return jsonify(resultado), 200
@@ -352,7 +349,7 @@ def aplicar_optimizacion(portafolio_id):
 
         try:
             tx = svc.registrar_transaccion(
-                portafolio_id, _USER_ID, ticker, tipo, hoy,
+                portafolio_id, g.user_id, ticker, tipo, hoy,
                 precio, cantidad, 0,
                 info.get("moneda", "USD"),
                 notas=f"Ajuste de optimización: {actual} → {objetivo}",
@@ -377,18 +374,14 @@ def check_demo():
 
 @portafolios_bp.route("/seed-demo", methods=["POST"])
 def seed_demo():
-    """Crea un portafolio demo con activos de prueba. Solo si LAKSHMI_DEMO=1."""
-    import os as _os
-    if _os.environ.get("LAKSHMI_DEMO") != "1":
-        return jsonify({"error": "Demo no habilitado."}), 403
-
+    """Crea un portafolio demo con activos de prueba."""
     from ..services import portfolio_service as svc
     from ..models.configuracion import ConfiguracionUsuario
     from ..extensions import db
     from datetime import date
     from decimal import Decimal
 
-    user_id = _USER_ID
+    user_id = g.user_id
 
     # Configurar capital global si es 0
     config = ConfiguracionUsuario.query.filter_by(user_id=user_id).first()
@@ -464,7 +457,7 @@ def proyeccion_portafolio(portafolio_id: int):
     n_sims = min(int(request.args.get("n_sims", 500)), 2000)
 
     try:
-        resultado = svc.proyeccion_monte_carlo(portafolio_id, _USER_ID, horizonte, n_sims)
+        resultado = svc.proyeccion_monte_carlo(portafolio_id, g.user_id, horizonte, n_sims)
     except ValueError as e:
         return _error(str(e), 400)
     except Exception as e:
@@ -491,7 +484,7 @@ def dashboard_portafolio(portafolio_id: int):
     from ..services import yfinance_service
 
     try:
-        posiciones = svc.obtener_posiciones(portafolio_id, _USER_ID)
+        posiciones = svc.obtener_posiciones(portafolio_id, g.user_id)
     except ValueError as e:
         return _error(str(e), 404)
 
@@ -794,7 +787,7 @@ def backtest_portafolio(portafolio_id: int):
     inversion = float(data.get("inversion_inicial", 10000))
 
     try:
-        posiciones = svc.obtener_posiciones(portafolio_id, _USER_ID)
+        posiciones = svc.obtener_posiciones(portafolio_id, g.user_id)
     except ValueError as e:
         return _error(str(e), 404)
 

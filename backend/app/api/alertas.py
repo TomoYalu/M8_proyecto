@@ -20,16 +20,13 @@ Requisitos cubiertos: 8.2, 8.5, 8.6
 
 import logging
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 
 from ..services.alert_service import AlertService
 
 logger = logging.getLogger(__name__)
 
 alertas_bp = Blueprint("alertas", __name__, url_prefix="/api/alertas")
-
-_USER_ID = 1
-
 
 def _error(mensaje: str, codigo: int):
     """Respuesta JSON de error con mensaje en español."""
@@ -39,7 +36,7 @@ def _error(mensaje: str, codigo: int):
 @alertas_bp.route("", methods=["GET"])
 def listar_alertas():
     """Lista todas las alertas del usuario."""
-    alertas = AlertService.listar_alertas(_USER_ID)
+    alertas = AlertService.listar_alertas(g.user_id)
     return jsonify({"alertas": alertas, "total": len(alertas)}), 200
 
 
@@ -76,7 +73,7 @@ def crear_alerta():
 
     try:
         alerta = AlertService.crear_alerta(
-            user_id=_USER_ID,
+            user_id=g.user_id,
             ticker=ticker,
             tipo=tipo,
             condicion=condicion,
@@ -100,7 +97,7 @@ def actualizar_alerta(alerta_id: int):
         return _error("Se requiere un cuerpo JSON válido.", 400)
 
     try:
-        alerta = AlertService.actualizar_alerta(alerta_id, _USER_ID, data)
+        alerta = AlertService.actualizar_alerta(alerta_id, g.user_id, data)
         return jsonify(alerta), 200
     except ValueError as e:
         return _error(str(e), 404)
@@ -113,7 +110,7 @@ def actualizar_alerta(alerta_id: int):
 def eliminar_alerta(alerta_id: int):
     """Elimina una alerta."""
     try:
-        resultado = AlertService.eliminar_alerta(alerta_id, _USER_ID)
+        resultado = AlertService.eliminar_alerta(alerta_id, g.user_id)
         return jsonify(resultado), 200
     except ValueError as e:
         return _error(str(e), 404)
@@ -126,7 +123,7 @@ def eliminar_alerta(alerta_id: int):
 def toggle_alerta(alerta_id: int):
     """Activa/desactiva una alerta sin eliminarla."""
     try:
-        alerta = AlertService.toggle_alerta(alerta_id, _USER_ID)
+        alerta = AlertService.toggle_alerta(alerta_id, g.user_id)
         return jsonify(alerta), 200
     except ValueError as e:
         return _error(str(e), 404)
@@ -144,5 +141,5 @@ def listar_historial():
     # Limitar per_page para evitar abusos
     per_page = min(per_page, 100)
 
-    resultado = AlertService.listar_historial(_USER_ID, page, per_page)
+    resultado = AlertService.listar_historial(g.user_id, page, per_page)
     return jsonify(resultado), 200

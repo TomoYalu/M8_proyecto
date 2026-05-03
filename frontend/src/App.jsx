@@ -5,13 +5,16 @@
  * Institución: Tecnológico de Monterrey
  * Fecha de creación: 2026-05-02
  */
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import useStore from './store';
 import Sidebar from './components/layout/Sidebar';
 import Navbar from './components/layout/Navbar';
 import ExchangeRateBanner from './components/layout/ExchangeRateBanner';
 import NotificationBadge from './components/layout/NotificationBadge';
 import DesktopWarning from './components/common/DesktopWarning';
 import ElevenLabsWidget from './components/common/ElevenLabsWidget';
+import Login from './pages/Login';
 import Portafolios from './pages/Portafolios';
 import Analisis from './pages/Analisis';
 import Noticias from './pages/Noticias';
@@ -24,6 +27,22 @@ import Busqueda from './pages/Busqueda';
 // ─── App (Layout + Routes) ──────────────────────────────────────
 
 export default function App() {
+  const user = useStore((s) => s.user);
+  const authLoading = useStore((s) => s.authLoading);
+  const checkAuth = useStore((s) => s.checkAuth);
+
+  useEffect(() => { checkAuth(); }, [checkAuth]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-bloomberg-bg flex items-center justify-center">
+        <div className="text-bloomberg-accent text-xl">Cargando...</div>
+      </div>
+    );
+  }
+
+  if (!user) return <Login />;
+
   return (
     <div className="flex min-h-screen bg-bloomberg-bg">
       <Sidebar />
@@ -34,7 +53,7 @@ export default function App() {
 
         <main className="flex-1 overflow-y-auto" role="main">
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/portafolios" replace />} />
             <Route path="/dashboard"   element={<Dashboard />} />
             <Route path="/portafolios" element={<Portafolios />} />
             <Route path="/analisis"    element={<Analisis />} />

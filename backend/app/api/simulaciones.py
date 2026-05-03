@@ -25,7 +25,7 @@ Requisitos cubiertos: 1.1–1.8
 
 import logging
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 
 from ..services import simulator_service as svc
 
@@ -36,9 +36,6 @@ simulaciones_bp = Blueprint(
 logger = logging.getLogger(__name__)
 
 # ── user_id fijo (single-user) ──────────────────────────────────
-_USER_ID = 1
-
-
 # ── Helpers ──────────────────────────────────────────────────────
 
 def _error(mensaje: str, codigo: int):
@@ -68,7 +65,7 @@ def crear_simulacion():
 
     try:
         resultado = svc.crear_simulacion(
-            user_id=_USER_ID,
+            user_id=g.user_id,
             nombre=nombre,
             capital_total=capital_total,
             moneda=moneda,
@@ -85,7 +82,7 @@ def crear_simulacion():
 @simulaciones_bp.route("", methods=["GET"])
 def listar_simulaciones():
     """Lista todas las simulaciones del usuario."""
-    simulaciones = svc.listar_simulaciones(_USER_ID)
+    simulaciones = svc.listar_simulaciones(g.user_id)
     return jsonify(simulaciones), 200
 
 
@@ -116,7 +113,7 @@ def importar_portafolio():
     try:
         resultado = svc.importar_portafolio(
             portafolio_id=portafolio_id,
-            user_id=_USER_ID,
+            user_id=g.user_id,
             nombre=nombre,
         )
     except ValueError as e:
@@ -134,7 +131,7 @@ def importar_portafolio():
 def obtener_simulacion(simulacion_id: int):
     """Detalle de una simulación con sus activos."""
     try:
-        resultado = svc.obtener_simulacion(simulacion_id, _USER_ID)
+        resultado = svc.obtener_simulacion(simulacion_id, g.user_id)
     except ValueError as e:
         return _error(str(e), 404)
 
@@ -159,7 +156,7 @@ def actualizar_simulacion(simulacion_id: int):
     try:
         resultado = svc.actualizar_simulacion(
             simulacion_id=simulacion_id,
-            user_id=_USER_ID,
+            user_id=g.user_id,
             datos=data,
         )
     except ValueError as e:
@@ -179,7 +176,7 @@ def actualizar_simulacion(simulacion_id: int):
 def ejecutar_simulacion(simulacion_id: int):
     """Convierte una simulación en un portafolio real."""
     try:
-        resultado = svc.ejecutar_simulacion(simulacion_id, _USER_ID)
+        resultado = svc.ejecutar_simulacion(simulacion_id, g.user_id)
     except ValueError as e:
         msg = str(e)
         if "No se encontró" in msg:
@@ -197,7 +194,7 @@ def ejecutar_simulacion(simulacion_id: int):
 def calcular_acciones(simulacion_id: int):
     """Calcula acciones y montos para cada activo de la simulación."""
     try:
-        resultado = svc.calcular_acciones(simulacion_id, _USER_ID)
+        resultado = svc.calcular_acciones(simulacion_id, g.user_id)
     except ValueError as e:
         msg = str(e)
         if "No se encontró" in msg:
@@ -215,7 +212,7 @@ def calcular_acciones(simulacion_id: int):
 def eliminar_simulacion(simulacion_id: int):
     """Elimina una simulación y todos sus activos."""
     try:
-        resultado = svc.eliminar_simulacion(simulacion_id, _USER_ID)
+        resultado = svc.eliminar_simulacion(simulacion_id, g.user_id)
     except ValueError as e:
         return _error(str(e), 404)
 

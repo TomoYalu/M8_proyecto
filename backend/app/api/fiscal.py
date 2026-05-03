@@ -18,7 +18,7 @@ Requisitos cubiertos: 9.1–9.7
 import logging
 from datetime import datetime, timezone
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 
 from ..models.cache import InpcCache
 from ..services.banxico_service import BanxicoService
@@ -27,9 +27,6 @@ from ..services.fiscal_service import FiscalService
 logger = logging.getLogger(__name__)
 
 fiscal_bp = Blueprint("fiscal", __name__, url_prefix="/api/fiscal")
-
-_USER_ID = 1
-
 
 def _error(mensaje: str, codigo: int):
     """Respuesta JSON de error con mensaje en español."""
@@ -45,7 +42,7 @@ def tabla_fiscal(portafolio_id: int):
               Factor INPC, Ganancia Real (MXN constantes).
     """
     try:
-        resultado = FiscalService.tabla_fiscal(portafolio_id, _USER_ID)
+        resultado = FiscalService.tabla_fiscal(portafolio_id, g.user_id)
         return jsonify(resultado), 200
     except ValueError as e:
         return _error(str(e), 404)

@@ -85,6 +85,8 @@ class ProductionConfig(BaseConfig):
 
     DEBUG = False
     LOG_LEVEL = logging.WARNING
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
 
 
 # Mapa de entornos para selección dinámica

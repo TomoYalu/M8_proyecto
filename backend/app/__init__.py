@@ -46,6 +46,8 @@ def create_app(config_name=None):
     BaseConfig.init_logging(app)
 
     # ── Blueprints ───────────────────────────────────────────────
+    from .api.auth import auth_bp
+    app.register_blueprint(auth_bp)
     from .api.portafolios import portafolios_bp
     app.register_blueprint(portafolios_bp)
     from .api.analisis import analisis_bp
@@ -69,10 +71,25 @@ def create_app(config_name=None):
     from .api.configuracion import configuracion_bp
     app.register_blueprint(configuracion_bp)
 
+    # ── Auth middleware ───────────────────────────────────────────
+    from flask import g, session as flask_session
+
+    @app.before_request
+    def load_user():
+        from flask import request as req
+        # Rutas de auth son publicas
+        if req.path.startswith('/api/auth'):
+            return
+        uid = flask_session.get('user_id')
+        if not uid and req.path.startswith('/api/'):
+            from flask import jsonify as jf
+            return jf({"error": "No autenticado."}), 401
+        g.user_id = uid or 1
+
     # ── Crear tablas automáticamente (Req 11.4) ──────────────────
     with app.app_context():
         # Importar modelos para que SQLAlchemy los registre
-        from .models import portafolio, alerta, noticia, widget, cache, universo, simulacion, configuracion  # noqa: F401
+        from .models import portafolio, alerta, noticia, widget, cache, universo, simulacion, configuracion, user  # noqa: F401
         db.create_all()
 
         # Verificar que las tablas críticas existen
@@ -83,19 +100,27 @@ def create_app(config_name=None):
         tables = inspector.get_table_names()
         _log.info("DB inicializada: %d tablas (%s)", len(tables), ", ".join(sorted(tables)[:5]) + ("..." if len(tables) > 5 else ""))
 
-        # Auto-seed demo si LAKSHMI_DEMO=1 y no hay portafolios
-        import os as _os
-        if _os.environ.get("LAKSHMI_DEMO") == "1":
-            from .models.portafolio import Portafolio
-            if Portafolio.query.count() == 0:
-                _log.info("LAKSHMI_DEMO=1 y sin portafolios, ejecutando seed...")
-                try:
-                    from .api.portafolios import seed_demo as _seed
-                    with app.test_request_context():
-                        _seed()
-                    _log.info("Demo seed completado.")
-                except Exception as e:
-                    _log.warning("Error en auto-seed demo: %s", e)
+        # Auto-seed: crear usuario demo si no existe
+        from .models.user import User
+        if User.query.filter_by(username="demo").first() is None:
+            _log.info("Creando usuario demo...")
+            demo_user = User(username="demo", nombre="Usuario Demo")
+            demo_user.set_password("demo")
+            db.session.add(demo_user)
+            db.session.commit()
+            _log.info("Usuario demo creado (id=%d).", demo_user.id)
+
+            # Seed portafolio demo
+            try:
+                from .api.portafolios import seed_demo as _seed
+                with app.test_request_context():
+                    from flask import session as _sess, g as _g
+                    _sess["user_id"] = demo_user.id
+                    _g.user_id = demo_user.id
+                    _seed()
+                _log.info("Demo seed completado.")
+            except Exception as e:
+                _log.warning("Error en auto-seed demo: %s", e)
 
     # ── WebSocket event handlers ────────────────────────────────
     from .sockets import events  # noqa: F401
