@@ -193,8 +193,6 @@ export default function OptimizerResults({ resultado, cargando, error, onReinten
           />
         </Panel>
       </div>
-        </div>
-      )}
     </div>
   );
 }

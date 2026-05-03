@@ -430,8 +430,8 @@ export default function Portafolios() {
                 portafolioActivo={portafolioActivo}
                 onSeleccionar={handleSeleccionar}
                 onCrear={handleAbrirCrear}
-              />
                 onDemoLoaded={async () => { await fetchPortafolios(); await fetchConsolidado(); }}
+                />
 
               {/* Panel de favoritos de sesión (B3) */}
               <FavoritosPanel
