@@ -11,6 +11,7 @@ import Navbar from './components/layout/Navbar';
 import ExchangeRateBanner from './components/layout/ExchangeRateBanner';
 import NotificationBadge from './components/layout/NotificationBadge';
 import DesktopWarning from './components/common/DesktopWarning';
+import ElevenLabsWidget from './components/common/ElevenLabsWidget';
 import Portafolios from './pages/Portafolios';
 import Analisis from './pages/Analisis';
 import Noticias from './pages/Noticias';
@@ -47,6 +48,7 @@ export default function App() {
       </div>
 
       <DesktopWarning />
+      <ElevenLabsWidget />
       <NotificationBadge />
     </div>
   );
