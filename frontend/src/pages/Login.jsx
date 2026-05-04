@@ -70,10 +70,7 @@ export default function Login() {
         {/* Brand — font-serif como el sidebar */}
         <div className="text-center mb-8">
           <h1 className="font-serif text-5xl font-bold tracking-tight text-white">
-            Lakshm<span className="text-cyan-400">i</span>
-          </h1>
-          <h1 className="font-serif text-5xl font-bold tracking-tight text-white -mt-2">
-            Q2<span className="text-cyan-400">.</span>
+            Lakshm<span className="text-cyan-400">i</span> Q2<span className="text-cyan-400">.</span>
           </h1>
           <p className="text-[#94a3b8] text-sm mt-2 font-light">
             Gestión de Inversiones
