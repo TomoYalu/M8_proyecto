@@ -11,16 +11,17 @@ const AGENT_ID = import.meta.env.VITE_ELEVENLABS_AGENT_ID;
 
 export default function ElevenLabsWidget() {
   const [minimized, setMinimized] = useState(true);
-  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const [pos, setPos] = useState(() => ({
+    x: typeof window !== 'undefined' ? window.innerWidth - 80 : 0,
+    y: typeof window !== 'undefined' ? window.innerHeight - 80 : 0,
+  }));
+  const posRef = useRef(pos);
   const dragging = useRef(false);
   const offset = useRef({ x: 0, y: 0 });
   const containerRef = useRef(null);
   const widgetRef = useRef(null);
 
-  // Initialize position to bottom-right
-  useEffect(() => {
-    setPos({ x: window.innerWidth - 80, y: window.innerHeight - 80 });
-  }, []);
+  useEffect(() => { posRef.current = pos; }, [pos]);
 
   // Load script and create widget element
   useEffect(() => {
@@ -68,11 +69,11 @@ export default function ElevenLabsWidget() {
     if (e.target.closest('[data-no-drag]')) return;
     dragging.current = true;
     offset.current = {
-      x: e.clientX - pos.x,
-      y: e.clientY - pos.y,
+      x: e.clientX - posRef.current.x,
+      y: e.clientY - posRef.current.y,
     };
     e.preventDefault();
-  }, [pos]);
+  }, []);
 
   useEffect(() => {
     const onMouseMove = (e) => {
