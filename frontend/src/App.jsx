@@ -8,6 +8,7 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import useStore from './store';
+import useInactivityLogout from './hooks/useInactivityLogout';
 import Sidebar from './components/layout/Sidebar';
 import Navbar from './components/layout/Navbar';
 import ExchangeRateBanner from './components/layout/ExchangeRateBanner';
@@ -34,6 +35,7 @@ export default function App() {
 
   useEffect(() => { checkAuth(); }, [checkAuth]);
 
+  useInactivityLogout();
   if (authLoading) {
     return (
       <div className="min-h-screen bg-bloomberg-bg flex items-center justify-center">

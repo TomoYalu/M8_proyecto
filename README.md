@@ -17,7 +17,43 @@ Plataforma web full-stack para gestión, optimización y monitoreo de portafolio
 
 ## Instalación con Docker
 
-La forma más rápida de levantar toda la plataforma es con Docker Compose:
+### Arquitectura de servicios
+
+La plataforma se compone de **3 contenedores** orquestados por Docker Compose:
+
+```
+┌──────────────────────────────────────────────────────┐
+│  Usuario (navegador)                                 │
+│       │                                              │
+│       ▼  :80                                         │
+│  ┌──────────┐                                        │
+│  │  nginx    │  Proxy reverso público                │
+│  └────┬──────┘                                       │
+│       │                                              │
+│  ┌────┴──────────────────┐                           │
+│  │                       │                           │
+│  │  /api/*               │  /*                       │
+│  │  /socket.io/*         │  (archivos estáticos)     │
+│  │                       │                           │
+│  ▼                       ▼                           │
+│  ┌──────────┐     ┌────────────┐                     │
+│  │ backend  │     │  frontend  │                     │
+│  │ Flask    │     │  React     │                     │
+│  │ :5000    │     │  Nginx :80 │                     │
+│  └──────────┘     └────────────┘                     │
+│       │                                              │
+│  ┌────┴─────┐                                        │
+│  │ Volúmenes│  sqlite-data  (base de datos)          │
+│  │          │  backend-logs (logs de aplicación)      │
+│  └──────────┘                                        │
+└──────────────────────────────────────────────────────┘
+```
+
+- **nginx** — Punto de entrada público (puerto 80). Rutea `/api/*` y `/socket.io/*` al backend, y todo lo demás al frontend. Configuración en `nginx/nginx.conf`.
+- **backend** — Flask + Gunicorn + eventlet. Sirve la API REST y WebSocket en el puerto 5000 (solo expuesto internamente). Usa DNS explícito (`8.8.8.8`, `1.1.1.1`) para garantizar resolución de nombres hacia Yahoo Finance, Banxico y RSS feeds.
+- **frontend** — Build estático de React/Vite servido por un Nginx interno. Las llamadas a `/api/*` las resuelve el proxy nginx, no el frontend.
+
+### Opción A: Build local (desde código fuente)
 
 ```bash
 # 1. Clonar el repositorio
@@ -28,19 +64,79 @@ cd lakshmi-q2
 cp .env.example .env
 # Editar .env con valores reales (ver sección Variables de Entorno)
 
-# 3. Levantar los tres servicios (backend, frontend, nginx)
-docker-compose up --build
+# 3. Construir imágenes y levantar
+docker compose up --build -d
 
 # La aplicación estará disponible en http://localhost
+# Usuario demo: demo / demo
 ```
 
-Para detener los servicios:
+### Opción B: Imágenes pre-built (desde Docker Hub)
+
+Si no se quiere compilar, las imágenes están publicadas en Docker Hub. Se incluyen scripts de deploy automático:
+
+- **Linux (Bash):** `bash DEPLOY_LAKSHMI.sh` — Instala Docker si es necesario, configura DNS, descarga imágenes y levanta todo.
+- **Windows (PowerShell):** `.\DEPLOY_LAKSHMI_WIN.ps1` — Requiere Docker Desktop instalado. Crea la estructura en `%USERPROFILE%\lakshmi-q2` y levanta los servicios.
+
+Ambos scripts generan los 3 archivos necesarios (`docker-compose.yml`, `nginx/nginx.conf`, `.env`) y ejecutan `docker compose up -d`.
+
+### docker-compose.yml explicado
+
+```yaml
+services:
+  # ── API + WebSocket ──────────────────────────────────────────
+  backend:
+    image: lyot91/lakshmi-backend:latest   # O build: ./backend para compilar local
+    container_name: lakshmi-backend
+    restart: unless-stopped
+    dns:                                    # DNS explícito: evita problemas en
+      - 8.8.8.8                             # servidores donde Docker no hereda
+      - 1.1.1.1                             # el DNS del host correctamente
+    expose:
+      - "5000"                              # Solo visible dentro de la red Docker
+    env_file:
+      - .env                                # Variables de entorno (SECRET_KEY, etc.)
+    volumes:
+      - sqlite-data:/app/data               # Base de datos SQLite persistente
+      - backend-logs:/app/logs              # Logs de la aplicación
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=sqlite:////app/data/lakshmi.db
+
+  # ── Archivos estáticos React ─────────────────────────────────
+  frontend:
+    image: lyot91/lakshmi-frontend:latest   # O build: ./frontend para compilar local
+    container_name: lakshmi-frontend
+    expose:
+      - "80"                                # Solo visible dentro de la red Docker
+
+  # ── Proxy reverso público ────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: lakshmi-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"                             # Único puerto expuesto al exterior
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - frontend
+```
+
+> Ver `nginx/nginx.conf.template` para una plantilla con comentarios de qué cambiar por ambiente (desarrollo, producción, HTTPS).
+
+### Comandos útiles
 
 ```bash
-docker-compose down
+docker compose up -d              # Levantar en background
+docker compose down               # Detener y remover contenedores
+docker compose logs -f backend    # Logs del backend en vivo
+docker compose pull               # Descargar últimas imágenes
+docker compose restart backend    # Reiniciar solo el backend
 ```
 
-Los datos de SQLite y los logs se persisten en volúmenes Docker (`sqlite-data`, `backend-logs`).
+Los datos de SQLite y los logs se persisten en volúmenes Docker (`sqlite-data`, `backend-logs`). Un `docker compose down` no los elimina; para borrarlos usar `docker compose down -v`.
 
 ---
 
@@ -122,8 +218,6 @@ npm run build
 | `SMTP_PASSWORD` | `.env` raíz | No | Contraseña o app password SMTP |
 
 El token de Banxico se obtiene en: https://www.banxico.org.mx/SieAPIRest/service/v1/token
-
----
 
 ---
 

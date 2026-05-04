@@ -69,6 +69,7 @@ def login():
     if not user or not user.check_password(password):
         return jsonify({"error": "Credenciales inválidas."}), 401
 
+    session.permanent = True
     session["user_id"] = user.id
     return jsonify(user.to_dict()), 200
 

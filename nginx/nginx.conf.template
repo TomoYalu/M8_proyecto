@@ -1,0 +1,142 @@
+# =============================================================================
+# Lakshmi Q2 — Plantilla de configuración Nginx
+#
+# Este archivo es una PLANTILLA con comentarios por ambiente.
+# Copiar a nginx/nginx.conf y ajustar según el ambiente:
+#
+#   cp nginx/nginx.conf.template nginx/nginx.conf
+#
+# Ambientes:
+#   [DEV]  — Desarrollo local (docker compose up)
+#   [PROD] — Servidor de producción (VPS, cloud)
+#   [HTTPS]— Producción con SSL/TLS (Let's Encrypt, Cloudflare, etc.)
+# =============================================================================
+
+# ── Upstreams: nombres de los contenedores Docker ────────────────
+# Estos nombres ("backend", "frontend") corresponden a los servicios
+# definidos en docker-compose.yml. Docker Compose los resuelve
+# automáticamente dentro de la red lakshmi-net.
+
+upstream backend {
+    server backend:5000;
+    # [PROD] Para múltiples instancias del backend:
+    # server backend-1:5000;
+    # server backend-2:5000;
+}
+
+upstream frontend {
+    server frontend:80;
+}
+
+# ── Servidor principal ───────────────────────────────────────────
+
+server {
+    listen 80;
+
+    # [DEV]  Dejar como localhost
+    # [PROD] Cambiar al dominio o IP del servidor, ej:
+    #        server_name lakshmi.midominio.com 104.238.215.60;
+    # [HTTPS] Redirigir HTTP a HTTPS (ver bloque server adicional abajo)
+    server_name localhost;
+
+    # Tamaño máximo de request body (uploads, JSON grandes)
+    # [DEV]  10M es suficiente
+    # [PROD] Ajustar si se necesitan uploads más grandes
+    client_max_body_size 10M;
+
+    # ── API REST ─────────────────────────────────────────────────
+    # Todas las rutas /api/* se envían al backend Flask.
+    # El frontend hace fetch('/api/...') y Nginx lo resuelve aquí.
+    location /api/ {
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # [DEV]  Timeouts generosos para debugging
+        # [PROD] Reducir si las respuestas deben ser rápidas
+        proxy_read_timeout 120s;
+        proxy_connect_timeout 10s;
+    }
+
+    # ── WebSocket (Flask-SocketIO) ───────────────────────────────
+    # Necesario para alertas en tiempo real y actualizaciones push.
+    # Los headers Upgrade/Connection habilitan el protocolo WebSocket.
+    location /socket.io/ {
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Timeout largo: las conexiones WebSocket son persistentes
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+
+    # ── Frontend SPA ─────────────────────────────────────────────
+    # Todo lo que no sea /api/ ni /socket.io/ va al frontend React.
+    # El contenedor frontend tiene su propio Nginx que sirve los
+    # archivos estáticos y hace fallback a index.html (SPA routing).
+    location / {
+        proxy_pass http://frontend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ── Compresión ───────────────────────────────────────────────
+    # [DEV]  Opcional, no afecta funcionalidad
+    # [PROD] Recomendado: reduce ~60% el tamaño de respuestas de texto
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript;
+    gzip_min_length 256;
+
+    # ── [PROD] Headers de seguridad (descomentar en producción) ──
+    # add_header X-Frame-Options "SAMEORIGIN" always;
+    # add_header X-Content-Type-Options "nosniff" always;
+    # add_header X-XSS-Protection "1; mode=block" always;
+    # add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+}
+
+# =============================================================================
+# [HTTPS] Bloque adicional para SSL/TLS con Let's Encrypt
+#
+# Descomentar este bloque y comentar el server de arriba para habilitar HTTPS.
+# Requiere certificados SSL generados con certbot u otro proveedor.
+#
+# Pasos:
+#   1. Instalar certbot: apt install certbot python3-certbot-nginx
+#   2. Generar certificado: certbot --nginx -d lakshmi.midominio.com
+#   3. Descomentar este bloque y ajustar las rutas de los certificados
+#   4. Agregar volumen en docker-compose.yml:
+#        - /etc/letsencrypt:/etc/letsencrypt:ro
+#   5. Exponer puerto 443 en docker-compose.yml:
+#        ports:
+#          - "80:80"
+#          - "443:443"
+# =============================================================================
+
+# server {
+#     listen 80;
+#     server_name lakshmi.midominio.com;
+#     # Redirigir todo HTTP a HTTPS
+#     return 301 https://$host$request_uri;
+# }
+#
+# server {
+#     listen 443 ssl;
+#     server_name lakshmi.midominio.com;
+#
+#     ssl_certificate     /etc/letsencrypt/live/lakshmi.midominio.com/fullchain.pem;
+#     ssl_certificate_key /etc/letsencrypt/live/lakshmi.midominio.com/privkey.pem;
+#     ssl_protocols       TLSv1.2 TLSv1.3;
+#     ssl_ciphers         HIGH:!aNULL:!MD5;
+#
+#     # ... (copiar los bloques location de arriba aquí)
+# }

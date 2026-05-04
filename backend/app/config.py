@@ -12,6 +12,7 @@ Incluye configuración de logging a archivo (logs/lakshmi.log) y consola.
 
 import os
 import logging
+from datetime import timedelta
 from logging.handlers import RotatingFileHandler
 
 
@@ -21,6 +22,10 @@ class BaseConfig:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+
+    # Sesión expira tras N minutos de inactividad (default: 10)
+    SESSION_TIMEOUT_MINUTES = float(os.environ.get("SESSION_TIMEOUT_MINUTES", 10))
+    PERMANENT_SESSION_LIFETIME = timedelta(minutes=SESSION_TIMEOUT_MINUTES)
     # Ruta de la DB SQLite relativa al directorio del backend
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     SQLALCHEMY_DATABASE_URI = os.environ.get(

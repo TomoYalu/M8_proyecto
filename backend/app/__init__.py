@@ -86,6 +86,11 @@ def create_app(config_name=None):
             return jf({"error": "No autenticado."}), 401
         g.user_id = uid or 1
 
+        # Refrescar expiración de sesión en cada request autenticado
+        if uid:
+            flask_session.modified = True
+
+
     # ── Crear tablas automáticamente (Req 11.4) ──────────────────
     with app.app_context():
         # Importar modelos para que SQLAlchemy los registre
