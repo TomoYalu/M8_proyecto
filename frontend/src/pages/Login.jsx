@@ -45,12 +45,10 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
     if (mode === 'register') {
       const emailErr = validarEmail(email);
       if (emailErr) { setEmailError(emailErr); return; }
     }
-
     setLoading(true);
     const result = mode === 'login'
       ? await login(username, password)
@@ -59,30 +57,65 @@ export default function Login() {
     if (!result.ok) setError(result.error);
   };
 
+  const inputCls = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-[#e2e8f0] placeholder-[#94a3b8]/50 focus:outline-none focus:border-cyan-400/60 transition-colors';
+  const inputErrCls = 'w-full bg-white/5 border border-red-500/50 rounded-lg px-3 py-2.5 text-[#e2e8f0] placeholder-[#94a3b8]/50 focus:outline-none focus:border-red-400/60 transition-colors';
+
   return (
-    <div className="min-h-screen bg-bloomberg-bg flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        {/* Brand */}
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#0a0e14' }}>
+      {/* Glow decorativo */}
+      <div className="fixed top-1/4 left-1/3 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="fixed bottom-1/4 right-1/3 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-sm relative z-10">
+        {/* Brand — font-serif como el sidebar */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-bloomberg-accent tracking-tight">
-            Lakshmi Q2<span className="text-bloomberg-text">.</span>
+          <h1 className="font-serif text-5xl font-bold tracking-tight text-white">
+            Lakshm<span className="text-cyan-400">i</span>
           </h1>
-          <p className="text-bloomberg-text-muted text-sm mt-1">
-            Gestión de Portafolios de Inversión
+          <h1 className="font-serif text-5xl font-bold tracking-tight text-white -mt-2">
+            Q2<span className="text-cyan-400">.</span>
+          </h1>
+          <p className="text-[#94a3b8] text-sm mt-2 font-light">
+            Gestión de Inversiones
           </p>
         </div>
 
-        {/* Card */}
-        <div className="bg-bloomberg-panel rounded-xl p-6 border border-white/5 shadow-lg">
-          <h2 className="text-lg font-semibold text-bloomberg-text mb-4">
-            {mode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
-          </h2>
+        {/* Card glassmorphism */}
+        <div
+          className="rounded-2xl p-6 border border-white/10 shadow-2xl"
+          style={{
+            background: 'rgba(10, 14, 20, 0.8)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+          }}
+        >
+          {/* Tabs login/register */}
+          <div className="flex gap-4 mb-6 border-b border-white/10 pb-3">
+            <button
+              type="button"
+              onClick={() => { setMode('login'); setError(''); setEmailError(''); }}
+              className={`text-sm font-light transition-colors ${
+                mode === 'login' ? 'text-cyan-400' : 'text-[#94a3b8] hover:text-white'
+              }`}
+            >
+              ◇ Iniciar Sesión
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode('register'); setError(''); setEmailError(''); }}
+              className={`text-sm font-light transition-colors ${
+                mode === 'register' ? 'text-cyan-400' : 'text-[#94a3b8] hover:text-white'
+              }`}
+            >
+              ◈ Crear Cuenta
+            </button>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
               <>
                 <div>
-                  <label className="block text-sm text-bloomberg-text-muted mb-1" htmlFor="nombre">
+                  <label className="block text-xs text-[#94a3b8] mb-1.5 font-light" htmlFor="nombre">
                     Nombre (opcional)
                   </label>
                   <input
@@ -90,13 +123,12 @@ export default function Login() {
                     type="text"
                     value={nombre}
                     onChange={(e) => setNombre(e.target.value)}
-                    className="w-full bg-bloomberg-bg border border-white/10 rounded-lg px-3 py-2 text-bloomberg-text focus:outline-none focus:border-bloomberg-accent"
+                    className={inputCls}
                     placeholder="Tu nombre"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm text-bloomberg-text-muted mb-1" htmlFor="email">
+                  <label className="block text-xs text-[#94a3b8] mb-1.5 font-light" htmlFor="email">
                     Correo electrónico
                   </label>
                   <input
@@ -104,21 +136,19 @@ export default function Login() {
                     type="email"
                     value={email}
                     onChange={handleEmailChange}
-                    className={`w-full bg-bloomberg-bg border rounded-lg px-3 py-2 text-bloomberg-text focus:outline-none focus:border-bloomberg-accent ${
-                      emailError ? 'border-bloomberg-red' : 'border-white/10'
-                    }`}
+                    className={emailError ? inputErrCls : inputCls}
                     placeholder="tu@correo.com"
                     required
                   />
                   {emailError && (
-                    <p className="text-bloomberg-red text-xs mt-1">{emailError}</p>
+                    <p className="text-red-400 text-xs mt-1">{emailError}</p>
                   )}
                 </div>
               </>
             )}
 
             <div>
-              <label className="block text-sm text-bloomberg-text-muted mb-1" htmlFor="username">
+              <label className="block text-xs text-[#94a3b8] mb-1.5 font-light" htmlFor="username">
                 Usuario
               </label>
               <input
@@ -126,7 +156,7 @@ export default function Login() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-bloomberg-bg border border-white/10 rounded-lg px-3 py-2 text-bloomberg-text focus:outline-none focus:border-bloomberg-accent"
+                className={inputCls}
                 placeholder="usuario"
                 required
                 autoFocus
@@ -134,7 +164,7 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-sm text-bloomberg-text-muted mb-1" htmlFor="password">
+              <label className="block text-xs text-[#94a3b8] mb-1.5 font-light" htmlFor="password">
                 Contraseña
               </label>
               <input
@@ -142,41 +172,36 @@ export default function Login() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-bloomberg-bg border border-white/10 rounded-lg px-3 py-2 text-bloomberg-text focus:outline-none focus:border-bloomberg-accent"
+                className={inputCls}
                 placeholder="••••••"
                 required
               />
             </div>
 
             {error && (
-              <p className="text-bloomberg-red text-sm" role="alert">{error}</p>
+              <p className="text-red-400 text-sm" role="alert">{error}</p>
             )}
 
             <button
               type="submit"
               disabled={loading || (mode === 'register' && !!emailError)}
-              className="w-full bg-bloomberg-accent hover:bg-bloomberg-accent/80 text-white font-medium py-2 rounded-lg transition-colors disabled:opacity-50"
+              className="w-full py-2.5 rounded-lg font-medium text-sm transition-all disabled:opacity-50 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/30 hover:border-cyan-400/50 hover:shadow-[0_0_20px_rgba(6,182,212,0.15)]"
             >
               {loading ? '...' : mode === 'login' ? 'Entrar' : 'Registrarse'}
             </button>
           </form>
 
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); setEmailError(''); }}
-              className="text-sm text-bloomberg-accent hover:underline"
-            >
-              {mode === 'login' ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
-            </button>
-          </div>
-
           {mode === 'login' && (
-            <p className="mt-3 text-center text-xs text-bloomberg-text-muted">
-              Demo: usuario <span className="text-bloomberg-text">demo</span> / contraseña <span className="text-bloomberg-text">demo</span>
+            <p className="mt-4 text-center text-xs text-[#94a3b8] font-light">
+              Demo: <span className="text-white">demo</span> / <span className="text-white">demo</span>
             </p>
           )}
         </div>
+
+        {/* Footer */}
+        <p className="text-center text-[10px] text-[#94a3b8]/40 mt-6 font-light tracking-widest">
+          L.Y.O.T. — TEC DE MONTERREY
+        </p>
       </div>
     </div>
   );
